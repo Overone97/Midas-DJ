@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1] - 2026-05-04
+
+### Added
+- Migration SQL versionnée dans `supabase/migrations/` pour refléter l’état réel du projet distant
+
+### Fixed
+- `supabase/.temp/` ignoré par Git pour éviter de salir le repo avec des fichiers CLI temporaires
+
 ## [1.2.0] - 2026-05-04
 
 ### Added
