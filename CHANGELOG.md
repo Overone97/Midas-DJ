@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.1.1] - 2026-05-04
+
+### Fixed
+- Activation de `trailingSlash` pour générer des sous-pages compatibles GitHub Pages (`/rooms/`, `/login/`, `/signup/`, `/docs/`) et éviter les 404 au clic
+- Export statique aligné avec la navigation réelle du site déployé
+
 ## [1.1.0] - 2026-05-04
 
 ### Added
