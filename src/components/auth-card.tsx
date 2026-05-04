@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { FormEvent, useMemo, useState } from 'react';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { ensureProfile } from '@/lib/supabase/profile';
 
 type AuthCardProps = {
   mode: 'login' | 'signup';
@@ -112,20 +111,11 @@ export function AuthCard({ mode, envReady }: AuthCardProps) {
           throw error;
         }
 
-        if (data.session && data.user) {
-          try {
-            await ensureProfile(supabase, data.user);
-          } catch {
-            // Le trigger SQL bootstrap_profile doit déjà couvrir la création initiale.
-            // On ne casse pas tout le signup juste parce qu'un upsert client annexe râle.
-          }
-        }
-
         setFeedback({
           tone: 'success',
           text: data.session
             ? 'Compte créé. Tu es connecté, on t’emmène vers le lobby.'
-            : 'Compte créé. Si la confirmation email est active sur Supabase, valide ton inbox puis reconnecte-toi.',
+            : 'Compte créé. Si la confirmation email est active sur Supabase, valide ton inbox puis reconnecte-toi. Si Supabase te répond 429, attends une minute avant de retenter.',
         });
 
         if (data.session) {
@@ -142,20 +132,15 @@ export function AuthCard({ mode, envReady }: AuthCardProps) {
         throw error;
       }
 
-      if (data.user) {
-        try {
-          await ensureProfile(supabase, data.user);
-        } catch {
-          // Si le profil existe déjà ou que le trigger l'a déjà fait, on laisse passer la connexion.
-        }
-      }
-
       setFeedback({ tone: 'success', text: 'Connexion réussie. Direction le lobby.' });
       router.push('/rooms');
       router.refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Une erreur inconnue a bloqué le flux.';
-      setFeedback({ tone: 'error', text: message });
+      const friendlyMessage = message.includes('429') || message.toLowerCase().includes('rate limit')
+        ? 'Supabase bloque temporairement les nouvelles tentatives. Attends environ une minute puis réessaie, ou change d’adresse email pour tester.'
+        : message;
+      setFeedback({ tone: 'error', text: friendlyMessage });
     } finally {
       setLoading(false);
     }

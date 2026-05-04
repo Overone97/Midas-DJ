@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.4] - 2026-05-04
+
+### Fixed
+- Suppression des upserts `profiles` côté client pendant signup/login/lobby pour laisser le trigger SQL Supabase faire son boulot
+- Message d’erreur plus propre quand Supabase répond `429` sur signup
+
 ## [1.2.3] - 2026-05-04
 
 ### Fixed

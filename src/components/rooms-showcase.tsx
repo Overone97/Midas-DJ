@@ -4,7 +4,6 @@ import { useEffect, useMemo, useState } from 'react';
 import { APP_RELEASE_LABEL } from '@/lib/app-version';
 import type { User } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import { ensureProfile } from '@/lib/supabase/profile';
 
 type RoomType = 'public' | 'private';
 
@@ -139,13 +138,6 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
         setFeedback({ tone: 'error', text: authError.message });
       } else {
         setSessionUser(authData.user ?? null);
-        if (authData.user) {
-          try {
-            await ensureProfile(supabase, authData.user);
-          } catch {
-            // On garde l’UI vivante même si le profil n’a pas encore été créé.
-          }
-        }
       }
 
       if (roomsError) {
@@ -228,8 +220,6 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
     setFeedback({ tone: 'neutral', text: 'Création de la room…' });
 
     try {
-      await ensureProfile(supabase, sessionUser);
-
       const { data: room, error: roomError } = await supabase
         .from('rooms')
         .insert({
@@ -299,8 +289,6 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
     setFeedback({ tone: 'neutral', text: 'Recherche de la room…' });
 
     try {
-      await ensureProfile(supabase, sessionUser);
-
       const { data: room, error: roomError } = await supabase
         .from('rooms')
         .select('id, name, slug, type')
