@@ -1,0 +1,49 @@
+# Roadmap — Midas DJ
+
+## v1.0.0 — Foundation
+- Repo GitHub public
+- Socle Next.js + TypeScript + Tailwind
+- Vision produit
+- PRD MVP complet
+- Architecture technique
+- Modèle de données initial
+- Convention de versioning
+
+## v1.1.0 — Backend skeleton
+- Setup Supabase
+- Auth email / magic link / OAuth à décider
+- Tables principales
+- Policies RLS de base
+- Seeds de rooms de test
+
+## v1.2.0 — Core room experience
+- Liste de rooms publiques
+- Création de room publique / privée
+- Rejoindre une room privée par lien
+- Présence des utilisateurs
+- UI room de base
+
+## v1.3.0 — YouTube + queue
+- Parsing URL YouTube
+- Ajout à la queue
+- Lecture vidéo intégrée
+- Passage automatique au morceau suivant
+
+## v1.4.0 — Realtime sync
+- Playback state serveur
+- Realtime room events
+- Resync client automatique
+- Gestion du drift
+
+## v1.5.0 — Social + moderation
+- Chat live
+- Likes / skip
+- Owner / mod / member
+- Mute / kick / ban
+
+## v2.0.0 — Polish and growth
+- Discovery plus solide
+- Historique room
+- Profils enrichis
+- Analytics communautaires
+- Optimisation perf / infra
