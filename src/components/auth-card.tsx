@@ -112,8 +112,13 @@ export function AuthCard({ mode, envReady }: AuthCardProps) {
           throw error;
         }
 
-        if (data.user) {
-          await ensureProfile(supabase, data.user);
+        if (data.session && data.user) {
+          try {
+            await ensureProfile(supabase, data.user);
+          } catch {
+            // Le trigger SQL bootstrap_profile doit déjà couvrir la création initiale.
+            // On ne casse pas tout le signup juste parce qu'un upsert client annexe râle.
+          }
         }
 
         setFeedback({
@@ -138,7 +143,11 @@ export function AuthCard({ mode, envReady }: AuthCardProps) {
       }
 
       if (data.user) {
-        await ensureProfile(supabase, data.user);
+        try {
+          await ensureProfile(supabase, data.user);
+        } catch {
+          // Si le profil existe déjà ou que le trigger l'a déjà fait, on laisse passer la connexion.
+        }
       }
 
       setFeedback({ tone: 'success', text: 'Connexion réussie. Direction le lobby.' });

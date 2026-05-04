@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.3] - 2026-05-04
+
+### Fixed
+- Le signup ne se casse plus visuellement si l’upsert client de `profiles` n’est pas nécessaire après création du compte
+- La connexion reste valide même si `ensureProfile` rencontre un cas déjà couvert par le trigger SQL
+
 ## [1.2.2] - 2026-05-04
 
 ### Fixed
