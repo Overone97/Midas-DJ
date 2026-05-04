@@ -26,8 +26,14 @@
 
 ## v1.3.0 — Room page + presence
 - UI room de base
-- Présence des utilisateurs
 - Navigation réelle vers une room créée/rejointe
+- Contrôle d’accès initial sur les rooms privées
+- Placeholders premium pour player / queue / chat
+
+## v1.3.1 — Presence branchée
+- Présence des utilisateurs
+- Roster live plus précis
+- États room temps réel minimaux
 
 ## v1.4.0 — YouTube + queue
 - Parsing URL YouTube

@@ -1,73 +1,17 @@
 'use client';
 
+import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { APP_RELEASE_LABEL } from '@/lib/app-version';
+import { featuredRooms, slugifyRoom, type FeaturedRoom, type LiveRoom, type RoomType } from '@/lib/rooms';
 import type { User } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-
-type RoomType = 'public' | 'private';
-
-type FeaturedRoom = {
-  name: string;
-  slug: string;
-  type: RoomType;
-  listeners: number;
-  queueDepth: number;
-  dj: string;
-  vibe: string;
-  description: string;
-  tags: string[];
-};
-
-type LiveRoom = {
-  id: string;
-  name: string;
-  slug: string;
-  type: RoomType;
-  description: string | null;
-  owner_id: string;
-};
 
 type Feedback = {
   tone: 'neutral' | 'success' | 'error';
   text: string;
 };
-
-const featuredRooms: FeaturedRoom[] = [
-  {
-    name: 'Golden Hour',
-    slug: 'golden-hour',
-    type: 'public',
-    listeners: 142,
-    queueDepth: 18,
-    dj: 'Ari Vega',
-    vibe: 'Nu-disco, edits solaires, transitions velvet',
-    description: 'La room signature pour les débuts de soirée qui montent proprement en intensité.',
-    tags: ['Warmup', 'Disco', 'Community pick'],
-  },
-  {
-    name: 'Night Shift FM',
-    slug: 'night-shift-fm',
-    type: 'public',
-    listeners: 86,
-    queueDepth: 11,
-    dj: 'Kito Nova',
-    vibe: 'UK garage, bassline et club cuts calibrés',
-    description: 'Un flux plus nerveux pour les crews qui veulent skip le small talk et entrer direct dans le groove.',
-    tags: ['UKG', 'Bass', 'Late set'],
-  },
-  {
-    name: 'Velvet Booth',
-    slug: 'velvet-booth',
-    type: 'private',
-    listeners: 12,
-    queueDepth: 6,
-    dj: 'Mina Lux',
-    vibe: 'R&B futuriste et sélections after-hours',
-    description: 'Room privée sur invitation, parfaite pour un cercle restreint et une modération stricte.',
-    tags: ['Private', 'Invite-only', 'After hours'],
-  },
-];
 
 const feedbackStyles: Record<Feedback['tone'], string> = {
   neutral: 'border-white/10 bg-white/5 text-white/72',
@@ -75,16 +19,8 @@ const feedbackStyles: Record<Feedback['tone'], string> = {
   error: 'border-rose-500/30 bg-rose-500/10 text-rose-50',
 };
 
-function slugify(value: string) {
-  return value
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 36);
-}
-
 export function RoomsShowcase({ envReady }: { envReady: boolean }) {
+  const router = useRouter();
   const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [liveRooms, setLiveRooms] = useState<LiveRoom[]>([]);
   const [loading, setLoading] = useState(envReady);
@@ -209,7 +145,7 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
     }
 
     const normalizedName = roomName.trim();
-    const normalizedSlug = slugify(roomSlug || roomName);
+    const normalizedSlug = slugifyRoom(roomSlug || roomName);
 
     if (!normalizedName || !normalizedSlug) {
       setFeedback({ tone: 'error', text: 'Donne au moins un nom crédible à la room.' });
@@ -246,12 +182,12 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
         throw memberError;
       }
 
-      setFeedback({ tone: 'success', text: `Room créée : ${room.name}. La vraie page room arrive au prochain morceau.` });
       setRoomName('');
       setRoomSlug('');
       setRoomDescription('');
       setRoomType('public');
       await refreshRooms();
+      router.push(`/rooms/${room.slug}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'La room a refusé de naître.';
       setFeedback({ tone: 'error', text: message });
@@ -278,7 +214,7 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
       return;
     }
 
-    const normalizedSlug = slugify(privateSlug);
+    const normalizedSlug = slugifyRoom(privateSlug);
 
     if (!normalizedSlug) {
       setFeedback({ tone: 'error', text: 'Entre un slug ou un code de room valide.' });
@@ -309,11 +245,8 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
         throw memberError;
       }
 
-      setFeedback({
-        tone: 'success',
-        text: `Accès enregistré pour ${room.name}. La vraie navigation de room arrive à l’étape suivante.`,
-      });
       setPrivateSlug('');
+      router.push(`/rooms/${room.slug}`);
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Impossible de rejoindre cette room.';
       setFeedback({ tone: 'error', text: message });
@@ -327,9 +260,9 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
       <div className="grid gap-4 rounded-[2rem] border border-white/10 bg-white/5 p-6 md:grid-cols-[1.2fr_0.8fr]">
         <div>
           <p className="text-sm uppercase tracking-[0.25em] text-gold/75">Lobby live</p>
-          <h2 className="mt-3 text-3xl font-bold">Des rooms visibles, un vrai signup/login, et les premiers flux room branchés.</h2>
+          <h2 className="mt-3 text-3xl font-bold">Des rooms visibles, un vrai signup/login, et une navigation room enfin réelle.</h2>
           <p className="mt-3 max-w-2xl text-white/72">
-            {`La ${APP_RELEASE_LABEL} quitte le pur décor : auth Supabase côté client, création de room, join privé par slug et découverte publique branchée quand l’environnement est prêt.`}
+            {`La ${APP_RELEASE_LABEL} ajoute une vraie page room : après create ou join privé, tu atterris enfin sur /rooms/[slug] avec un état d’accès crédible.`}
           </p>
         </div>
 
@@ -416,20 +349,28 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
             ) : null}
 
             <div className="mt-6 flex gap-3">
+              {'id' in room ? (
+                <Link href={`/rooms/${room.slug}`} className="rounded-full bg-gold px-4 py-2 font-semibold text-night">
+                  Ouvrir la room
+                </Link>
+              ) : (
+                <Link href={`/rooms/${room.slug}`} className="rounded-full bg-gold px-4 py-2 font-semibold text-night">
+                  Voir la preview
+                </Link>
+              )}
               <button
                 type="button"
                 onClick={() => {
                   setPrivateSlug(room.slug);
                   setFeedback({
                     tone: 'neutral',
-                    text: `Slug "${room.slug}" placé dans le champ de join. Prochaine étape : vraie page room et présence live.`,
+                    text: `Slug "${room.slug}" placé dans le champ de join. Tu peux maintenant ouvrir ou rejoindre cette room pour de vrai.`,
                   });
                 }}
-                className="rounded-full bg-gold px-4 py-2 font-semibold text-night"
+                className="rounded-full border border-white/15 px-4 py-2 font-semibold text-white/80"
               >
                 Préparer le join
               </button>
-              <button className="rounded-full border border-white/15 px-4 py-2 font-semibold text-white/80">Voir la queue</button>
             </div>
           </article>
         ))}
@@ -440,7 +381,7 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
           <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Créer une room</p>
           <h3 className="mt-3 text-2xl font-bold">Lancer un nouveau dancefloor pour de vrai</h3>
           <p className="mt-3 text-white/72">
-            Quand Supabase est branché et que tu es connecté, cette carte crée une vraie ligne dans la table `rooms` puis t’ajoute comme owner.
+            Quand Supabase est branché et que tu es connecté, cette carte crée une vraie ligne dans la table `rooms`, t’ajoute comme owner puis te redirige vers la page room.
           </p>
 
           <div className="mt-5 space-y-3">
@@ -450,7 +391,7 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
               onChange={(event) => {
                 const value = event.target.value;
                 setRoomName(value);
-                setRoomSlug(slugify(value));
+                setRoomSlug(slugifyRoom(value));
               }}
               placeholder="Nom de la room"
               className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40"
@@ -458,7 +399,7 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
             <input
               type="text"
               value={roomSlug}
-              onChange={(event) => setRoomSlug(slugify(event.target.value))}
+              onChange={(event) => setRoomSlug(slugifyRoom(event.target.value))}
               placeholder="slug-de-room"
               className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40"
             />
@@ -505,7 +446,7 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
           <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Rejoindre en privé</p>
           <h3 className="mt-3 text-2xl font-bold">Entrer avec un slug de room</h3>
           <p className="mt-3 text-white/72">
-            Le flow est enfin branché : on cherche la room, puis on t’inscrit dans `room_members`. La vraie page room vient juste après.
+            Le flow cherche la room, t’inscrit dans `room_members`, puis t’ouvre directement la page slug associée.
           </p>
           <div className="mt-5 flex gap-3">
             <input
