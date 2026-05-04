@@ -1,6 +1,6 @@
 # Midas DJ
 
-**Version:** 1.1.0
+**Version:** 1.1.1
 
 Midas DJ est une plateforme d’écoute sociale en temps réel, inspirée de plug.dj et repensée pour le web moderne.
 
@@ -14,9 +14,9 @@ Créer une expérience où l’on peut :
 - prendre la main comme DJ à tour de rôle ;
 - voter, skipper et modérer sans transformer la room en zoo.
 
-## Scope de la release 1.1.0
+## Scope de la release 1.1.1
 
-Cette release transforme le projet de simple landing/doc en vrai squelette d’application :
+Cette patch release corrige le routage GitHub Pages des sous-pages statiques (`/rooms/`, `/login/`, `/signup/`, `/docs/`) tout en conservant le squelette d’application introduit en 1.1.0 :
 - **socle Next.js + TypeScript + Tailwind** conservé ;
 - **helpers Supabase client/server** ajoutés sans casser l’export statique ;
 - **pages `/login` et `/signup`** avec UX de preview crédible ;
