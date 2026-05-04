@@ -11,13 +11,14 @@
 
 ## v1.1.0 — Backend skeleton
 - Setup Supabase
-- Auth email / magic link / OAuth à décider
-- Tables principales
-- Policies RLS de base
-- Seeds de rooms de test
+- Helpers client/server et fallback statique GitHub Pages
+- Auth preview sur `/login` et `/signup`
+- Lobby `/rooms` avec discovery publique/privée
+- Tables principales via schéma SQL initial
+- Variables d’environnement documentées
 
 ## v1.2.0 — Core room experience
-- Liste de rooms publiques
+- Liste de rooms publiques branchée au backend
 - Création de room publique / privée
 - Rejoindre une room privée par lien
 - Présence des utilisateurs

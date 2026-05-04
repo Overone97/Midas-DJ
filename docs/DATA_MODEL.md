@@ -1,10 +1,12 @@
-# Modèle de données initial — Midas DJ v1.0.0
+# Modèle de données initial — Midas DJ v1.1.0
 
-## users
+## profiles
 - id
 - username
 - avatar_url
+- bio
 - created_at
+- updated_at
 
 ## rooms
 - id
@@ -82,6 +84,8 @@
 - created_at
 
 ## Remarques
-- `playback_state` doit rester la source de vérité du player.
+- `profiles` complète `auth.users` côté produit.
+- `playback_state` reste la source de vérité du player.
 - `queue_items` garde l’historique d’état des morceaux.
 - `dj_queue` reste volontairement simple en v1.
+- Le SQL concret vit dans `supabase/schema.sql`.
