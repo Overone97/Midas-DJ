@@ -14,7 +14,7 @@ export default function RoomsPage() {
         </div>
       }
     >
-      <RoomsShowcase />
+      <RoomsShowcase envReady={hasSupabaseEnv()} />
     </AppShell>
   );
 }

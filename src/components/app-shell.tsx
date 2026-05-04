@@ -27,7 +27,7 @@ export function AppShell({ children, eyebrow, title, description, actions }: App
               <span className="rounded-full border border-gold/30 bg-gold/10 px-3 py-1 text-xs uppercase tracking-[0.3em]">
                 Midas DJ
               </span>
-              v1.1.0
+              v1.2.0
             </Link>
             <div className="mt-4 space-y-3">
               {eyebrow ? <p className="text-sm uppercase tracking-[0.25em] text-gold/75">{eyebrow}</p> : null}

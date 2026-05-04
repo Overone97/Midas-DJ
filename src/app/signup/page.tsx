@@ -7,7 +7,7 @@ export default function SignupPage() {
     <AppShell
       eyebrow="Inscription"
       title="Claim your Midas identity"
-      description="Réserve ton pseudo, prépare tes rooms privées et pose la première brique de ton profil social listening."
+      description="Le signup est maintenant branché sur Supabase côté client pour créer un vrai compte, préparer ton profil et amorcer les rooms privées."
     >
       <AuthCard mode="signup" envReady={hasSupabaseEnv()} />
     </AppShell>

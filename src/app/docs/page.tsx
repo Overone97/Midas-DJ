@@ -19,7 +19,7 @@ const docs = [
   },
   {
     title: 'Supabase notes',
-    summary: 'Helpers client/server, variables d’environnement et schéma SQL de démarrage pour v1.1.0.',
+    summary: 'Helpers client/server, variables d’environnement, auth côté client et schéma SQL de démarrage pour v1.2.0.',
   },
 ];
 
@@ -27,8 +27,8 @@ export default function DocsPage() {
   return (
     <AppShell
       eyebrow="Documentation fondatrice"
-      title="Midas DJ v1.1.0"
-      description="La base produit et technique reste documentée, mais cette release ajoute enfin un vrai squelette applicatif et le point d’entrée Supabase."
+      title="Midas DJ v1.2.0"
+      description="La base produit et technique est maintenant reliée à une vraie auth côté client et aux premiers flux de room sur Supabase."
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
         {docs.map((doc) => (
