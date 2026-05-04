@@ -1,5 +1,41 @@
 create extension if not exists "pgcrypto";
 
+create or replace function public.set_timestamp()
+returns trigger
+language plpgsql
+as $$
+begin
+  new.updated_at = timezone('utc', now());
+  return new;
+end;
+$$;
+
+create or replace function public.bootstrap_profile()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  raw_username text;
+  normalized_username text;
+begin
+  raw_username := coalesce(new.raw_user_meta_data ->> 'username', split_part(new.email, '@', 1), 'midas');
+  normalized_username := lower(regexp_replace(raw_username, '[^a-zA-Z0-9]+', '-', 'g'));
+  normalized_username := trim(both '-' from normalized_username);
+
+  if normalized_username = '' then
+    normalized_username := 'midas';
+  end if;
+
+  insert into public.profiles (id, username)
+  values (new.id, left(normalized_username || '-' || substr(new.id::text, 1, 6), 30))
+  on conflict (id) do nothing;
+
+  return new;
+end;
+$$;
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   username text not null unique,
@@ -103,3 +139,151 @@ create index if not exists queue_items_room_id_idx on public.queue_items (room_i
 create index if not exists votes_room_item_idx on public.votes (room_id, queue_item_id);
 create index if not exists messages_room_id_idx on public.messages (room_id, created_at desc);
 create index if not exists moderation_events_room_id_idx on public.moderation_events (room_id, created_at desc);
+
+alter table public.profiles enable row level security;
+alter table public.rooms enable row level security;
+alter table public.room_members enable row level security;
+alter table public.dj_queue enable row level security;
+alter table public.queue_items enable row level security;
+alter table public.playback_state enable row level security;
+alter table public.votes enable row level security;
+alter table public.messages enable row level security;
+alter table public.moderation_events enable row level security;
+
+drop trigger if exists profiles_set_timestamp on public.profiles;
+create trigger profiles_set_timestamp
+before update on public.profiles
+for each row
+execute function public.set_timestamp();
+
+drop trigger if exists rooms_set_timestamp on public.rooms;
+create trigger rooms_set_timestamp
+before update on public.rooms
+for each row
+execute function public.set_timestamp();
+
+drop trigger if exists playback_state_set_timestamp on public.playback_state;
+create trigger playback_state_set_timestamp
+before update on public.playback_state
+for each row
+execute function public.set_timestamp();
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row
+execute function public.bootstrap_profile();
+
+drop policy if exists "profiles are readable by authenticated users" on public.profiles;
+create policy "profiles are readable by authenticated users"
+on public.profiles
+for select
+to authenticated
+using (true);
+
+drop policy if exists "users manage their own profile" on public.profiles;
+create policy "users manage their own profile"
+on public.profiles
+for all
+to authenticated
+using (auth.uid() = id)
+with check (auth.uid() = id);
+
+drop policy if exists "public rooms are visible and authenticated users can inspect more" on public.rooms;
+create policy "public rooms are visible and authenticated users can inspect more"
+on public.rooms
+for select
+to anon, authenticated
+using (type = 'public' or auth.role() = 'authenticated');
+
+drop policy if exists "authenticated users can create their rooms" on public.rooms;
+create policy "authenticated users can create their rooms"
+on public.rooms
+for insert
+to authenticated
+with check (auth.uid() = owner_id);
+
+drop policy if exists "owners can update their rooms" on public.rooms;
+create policy "owners can update their rooms"
+on public.rooms
+for update
+to authenticated
+using (auth.uid() = owner_id)
+with check (auth.uid() = owner_id);
+
+drop policy if exists "owners can delete their rooms" on public.rooms;
+create policy "owners can delete their rooms"
+on public.rooms
+for delete
+to authenticated
+using (auth.uid() = owner_id);
+
+drop policy if exists "members can read their memberships" on public.room_members;
+create policy "members can read their memberships"
+on public.room_members
+for select
+to authenticated
+using (
+  auth.uid() = user_id
+  or exists (
+    select 1 from public.rooms
+    where rooms.id = room_members.room_id
+      and rooms.owner_id = auth.uid()
+  )
+);
+
+drop policy if exists "authenticated users can join themselves" on public.room_members;
+create policy "authenticated users can join themselves"
+on public.room_members
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "members can leave their own rooms" on public.room_members;
+create policy "members can leave their own rooms"
+on public.room_members
+for delete
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "queue visible to authenticated users" on public.dj_queue;
+create policy "queue visible to authenticated users"
+on public.dj_queue
+for select
+to authenticated
+using (true);
+
+drop policy if exists "queue items visible to authenticated users" on public.queue_items;
+create policy "queue items visible to authenticated users"
+on public.queue_items
+for select
+to authenticated
+using (true);
+
+drop policy if exists "playback visible to authenticated users" on public.playback_state;
+create policy "playback visible to authenticated users"
+on public.playback_state
+for select
+to authenticated
+using (true);
+
+drop policy if exists "votes visible to authenticated users" on public.votes;
+create policy "votes visible to authenticated users"
+on public.votes
+for select
+to authenticated
+using (true);
+
+drop policy if exists "messages visible to authenticated users" on public.messages;
+create policy "messages visible to authenticated users"
+on public.messages
+for select
+to authenticated
+using (true);
+
+drop policy if exists "moderation events visible to authenticated users" on public.moderation_events;
+create policy "moderation events visible to authenticated users"
+on public.moderation_events
+for select
+to authenticated
+using (true);

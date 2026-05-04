@@ -1,4 +1,4 @@
-# Modèle de données initial — Midas DJ v1.1.0
+# Modèle de données initial — Midas DJ v1.2.0
 
 ## profiles
 - id
@@ -89,3 +89,4 @@
 - `queue_items` garde l’historique d’état des morceaux.
 - `dj_queue` reste volontairement simple en v1.
 - Le SQL concret vit dans `supabase/schema.sql`.
+- La v1.2.0 ajoute un bootstrap de profil et les premières policies RLS pour rendre l’auth et les rooms réellement branchables.

@@ -1,6 +1,6 @@
 # Midas DJ
 
-**Version:** 1.1.1
+**Version:** 1.2.0
 
 Midas DJ est une plateforme d’écoute sociale en temps réel, inspirée de plug.dj et repensée pour le web moderne.
 
@@ -14,15 +14,15 @@ Créer une expérience où l’on peut :
 - prendre la main comme DJ à tour de rôle ;
 - voter, skipper et modérer sans transformer la room en zoo.
 
-## Scope de la release 1.1.1
+## Scope de la release 1.2.0
 
-Cette patch release corrige le routage GitHub Pages des sous-pages statiques (`/rooms/`, `/login/`, `/signup/`, `/docs/`) tout en conservant le squelette d’application introduit en 1.1.0 :
-- **socle Next.js + TypeScript + Tailwind** conservé ;
-- **helpers Supabase client/server** ajoutés sans casser l’export statique ;
-- **pages `/login` et `/signup`** avec UX de preview crédible ;
-- **page `/rooms`** avec rooms mockées publiques/privées et CTA créer/rejoindre ;
-- **schéma SQL Supabase** pour les entités clés du produit ;
-- **documentation et versioning** mis à jour pour préparer la suite.
+Cette release rend enfin le projet vraiment utile :
+- **signup/login Supabase** branchés côté client ;
+- **création de room publique/privée** depuis `/rooms` ;
+- **join privé par slug** avec insertion dans `room_members` ;
+- **bootstrap de profil** pour relier l’utilisateur auth au produit ;
+- **policies RLS de base** + trigger SQL côté Supabase ;
+- **fallback statique GitHub Pages** conservé quand l’environnement n’est pas fourni.
 
 ## Stack retenue
 
@@ -63,7 +63,9 @@ NEXT_PUBLIC_SUPABASE_ANON_KEY=your-anon-key
 - `src/lib/supabase/client.ts` expose un client navigateur paresseux.
 - `src/lib/supabase/server.ts` prépare le client serveur basé sur les cookies Next.
 - `src/lib/supabase/env.ts` centralise la détection des variables manquantes pour garder un fallback propre.
-- Tant que l’auth réelle n’est pas branchée, `/login` et `/signup` restent des previews UX intentionnelles.
+- `src/lib/supabase/profile.ts` garantit qu’un profil exploitable existe pour les flux create/join.
+- `supabase/schema.sql` contient maintenant un trigger de bootstrap profil et les premières policies RLS.
+- Sans variables publiques dans la build, le site reste navigable mais l’auth et les actions room restent désactivées.
 
 ## Convention produit
 
@@ -75,8 +77,8 @@ Midas DJ doit respirer :
 
 ## Prochaines étapes recommandées
 
-1. Brancher les formulaires auth sur Supabase Auth.
-2. Ajouter les policies RLS et seeds de démarrage.
-3. Construire la vraie page room avec queue, chat et présence.
-4. Intégrer YouTube IFrame Player API.
-5. Poser la synchro temps réel de playback.
+1. Construire la vraie page room avec navigation réelle après create/join.
+2. Ajouter présence live, chat et queue dans la room.
+3. Intégrer YouTube IFrame Player API.
+4. Poser la synchro temps réel de playback.
+5. Renforcer les règles d’accès des rooms privées.

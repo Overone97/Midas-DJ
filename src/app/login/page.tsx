@@ -7,7 +7,7 @@ export default function LoginPage() {
     <AppShell
       eyebrow="Connexion"
       title="Welcome back to the booth"
-      description="Un flux de connexion simple, crédible et déjà prêt à accueillir Supabase Auth dès que les variables d’environnement sont branchées."
+      description="Le flux de connexion est maintenant branché sur Supabase côté client. Si les variables publiques sont présentes dans la build, tu peux vraiment te connecter."
     >
       <AuthCard mode="login" envReady={hasSupabaseEnv()} />
     </AppShell>

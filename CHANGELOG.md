@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.2.0] - 2026-05-04
+
+### Added
+- Auth Supabase réellement branchée côté client pour `/login` et `/signup`
+- Création de room publique/privée depuis `/rooms`
+- Join privé par slug avec insertion dans `room_members`
+- Synchronisation du profil utilisateur côté client via `ensureProfile`
+- Trigger Supabase de bootstrap profil + premières policies RLS de base
+
+### Changed
+- Lobby `/rooms` désormais relié aux vraies données Supabase quand l’environnement est configuré
+- Homepage, docs et shell mis à jour pour refléter le passage en v1.2.0
+
 ## [1.1.1] - 2026-05-04
 
 ### Fixed
