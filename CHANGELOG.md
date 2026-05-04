@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.2.2] - 2026-05-04
+
+### Fixed
+- Version affichée dans l’interface synchronisée avec `package.json`
+- Source unique ajoutée pour éviter les décalages entre repo, UI et docs
+
 ## [1.2.1] - 2026-05-04
 
 ### Added

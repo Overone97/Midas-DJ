@@ -1,4 +1,5 @@
 import { AppShell } from '@/components/app-shell';
+import { APP_RELEASE_LABEL } from '@/lib/app-version';
 
 const docs = [
   {
@@ -19,7 +20,7 @@ const docs = [
   },
   {
     title: 'Supabase notes',
-    summary: 'Helpers client/server, variables d’environnement, auth côté client et schéma SQL de démarrage pour v1.2.0.',
+    summary: 'Helpers client/server, variables d’environnement, auth côté client et schéma SQL alignés avec la version actuelle.',
   },
 ];
 
@@ -27,7 +28,7 @@ export default function DocsPage() {
   return (
     <AppShell
       eyebrow="Documentation fondatrice"
-      title="Midas DJ v1.2.0"
+      title={`Midas DJ ${APP_RELEASE_LABEL}`}
       description="La base produit et technique est maintenant reliée à une vraie auth côté client et aux premiers flux de room sur Supabase."
     >
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">

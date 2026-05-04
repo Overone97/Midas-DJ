@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { APP_RELEASE_LABEL } from '@/lib/app-version';
 import type { User } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import { ensureProfile } from '@/lib/supabase/profile';
@@ -340,7 +341,7 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
           <p className="text-sm uppercase tracking-[0.25em] text-gold/75">Lobby live</p>
           <h2 className="mt-3 text-3xl font-bold">Des rooms visibles, un vrai signup/login, et les premiers flux room branchés.</h2>
           <p className="mt-3 max-w-2xl text-white/72">
-            La v1.2.0 quitte le pur décor : auth Supabase côté client, création de room, join privé par slug et découverte publique branchée quand l’environnement est prêt.
+            {`La ${APP_RELEASE_LABEL} quitte le pur décor : auth Supabase côté client, création de room, join privé par slug et découverte publique branchée quand l’environnement est prêt.`}
           </p>
         </div>
 
