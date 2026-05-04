@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { AppShell } from '@/components/app-shell';
+import { APP_RELEASE_LABEL } from '@/lib/app-version';
 
 const pillars = [
   'Auth Supabase branchée côté client',  'Rooms publiques/privées avec lobby crédible',
@@ -30,7 +31,7 @@ export default function HomePage() {
       <section className="grid gap-8 md:grid-cols-[1.4fr_1fr] md:items-center">
         <div className="space-y-6 rounded-[2rem] border border-white/10 bg-white/5 p-7 shadow-2xl shadow-black/15">
           <div className="inline-flex w-fit items-center rounded-full border border-gold/20 bg-gold/10 px-3 py-1 text-sm text-gold">
-            Midas DJ · v1.2.0
+            Midas DJ · {APP_RELEASE_LABEL}
           </div>
 
           <div className="space-y-4">
@@ -54,7 +55,7 @@ export default function HomePage() {
         </div>
 
         <div className="rounded-[2rem] border border-white/10 bg-black/20 p-6 shadow-2xl shadow-black/20 backdrop-blur">
-          <p className="mb-4 text-sm uppercase tracking-[0.2em] text-gold/70">Piliers v1.2.0</p>
+          <p className="mb-4 text-sm uppercase tracking-[0.2em] text-gold/70">Piliers {APP_RELEASE_LABEL}</p>
           <ul className="space-y-3 text-white/80">
             {pillars.map((pillar) => (
               <li key={pillar} className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
