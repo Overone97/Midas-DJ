@@ -1,5 +1,21 @@
+'use client';
+
 import Link from 'next/link';
+import { getYouTubeEmbedUrl } from '@/lib/youtube';
 import type { RoomPageState, RoomRole } from '@/lib/rooms';
+
+type QueueComposerProps = {
+  url: string;
+  title: string;
+  submitting: boolean;
+  feedback?: {
+    tone: 'neutral' | 'success' | 'error';
+    text: string;
+  } | null;
+  onUrlChange: (value: string) => void;
+  onTitleChange: (value: string) => void;
+  onSubmit: () => void;
+};
 
 const roleLabels: Record<RoomRole, string> = {
   owner: 'Owner',
@@ -15,12 +31,30 @@ const roleAccent: Record<RoomRole, string> = {
   visitor: 'border-white/10 bg-white/5 text-white/75',
 };
 
-export function RoomPageView({ state }: { state: RoomPageState }) {
+const feedbackStyles: Record<NonNullable<QueueComposerProps['feedback']>['tone'], string> = {
+  neutral: 'border-white/10 bg-white/5 text-white/72',
+  success: 'border-emerald-500/30 bg-emerald-500/10 text-emerald-50',
+  error: 'border-rose-500/30 bg-rose-500/10 text-rose-50',
+};
+
+function formatDuration(durationSeconds?: number) {
+  if (!durationSeconds || durationSeconds <= 0) {
+    return 'durée inconnue';
+  }
+
+  const minutes = Math.floor(durationSeconds / 60);
+  const seconds = durationSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+export function RoomPageView({ state, queueComposer }: { state: RoomPageState; queueComposer?: QueueComposerProps }) {
   const isPrivate = state.room.type === 'private';
   const denied = state.status === 'forbidden';
   const missing = state.status === 'missing';
   const preview = state.status === 'preview';
   const onlineMembers = state.members.filter((member) => member.online).length;
+  const queueItems = state.queue?.items ?? [];
+  const currentTrack = queueItems.find((item) => item.status === 'playing') ?? queueItems[0];
 
   return (
     <section className="space-y-8">
@@ -134,28 +168,133 @@ export function RoomPageView({ state }: { state: RoomPageState }) {
                 <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Player</p>
                 <h3 className="mt-3 text-2xl font-bold">Deck principal</h3>
               </div>
-              <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs uppercase tracking-[0.2em] text-white/65">Premium placeholder</span>
+              <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs uppercase tracking-[0.2em] text-white/65">
+                {currentTrack ? currentTrack.status : 'placeholder'}
+              </span>
             </div>
-            <div className="mt-5 rounded-[1.5rem] border border-dashed border-gold/20 bg-black/30 p-5 text-white/68">
-              Bloc prévu pour la lecture synchronisée YouTube, les états realtime et les contrôles DJ. La room existe déjà visuellement sans promettre le moteur final.
-            </div>
+
+            {currentTrack ? (
+              <div className="mt-5 grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+                <div className="overflow-hidden rounded-[1.5rem] border border-gold/20 bg-black/40">
+                  <div className="aspect-video w-full">
+                    <iframe
+                      className="h-full w-full"
+                      src={getYouTubeEmbedUrl(currentTrack.youtubeVideoId)}
+                      title={currentTrack.title}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  </div>
+                </div>
+                <div className="rounded-[1.5rem] border border-white/10 bg-black/30 p-5 text-white/78">
+                  <p className="text-xs uppercase tracking-[0.2em] text-gold/75">Lecture courante</p>
+                  <h4 className="mt-3 text-xl font-bold text-white">{currentTrack.title}</h4>
+                  <div className="mt-4 space-y-2 text-sm text-white/65">
+                    <p>Ajouté par · {currentTrack.addedByLabel}</p>
+                    <p>Position · #{currentTrack.position}</p>
+                    <p>Durée · {formatDuration(currentTrack.durationSeconds)}</p>
+                  </div>
+                  <p className="mt-4 text-sm text-white/60">
+                    On a enfin une vraie source YouTube dans la room. La synchro realtime du player vient juste après.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-5 rounded-[1.5rem] border border-dashed border-gold/20 bg-black/30 p-5 text-white/68">
+                Aucun titre dans la queue pour l’instant. Ajoute un lien YouTube et on arrête enfin de regarder un placeholder vide.
+              </div>
+            )}
           </div>
 
           <div className="grid gap-5 lg:grid-cols-2">
             <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
               <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Queue</p>
               <h3 className="mt-3 text-2xl font-bold">File collaborative</h3>
-              <div className="mt-5 rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/68">
-                Placeholder premium pour les prochains titres, votes et rotation DJ. {state.room.vibe ? `Vibe actuelle : ${state.room.vibe}.` : 'Le ton de la room se branchera ici.'}
+              <p className="mt-3 text-white/72">
+                {queueItems.length > 0
+                  ? `${queueItems.length} titre${queueItems.length > 1 ? 's' : ''} visible${queueItems.length > 1 ? 's' : ''} dans la file.`
+                  : 'La queue est vide. Ça, on peut le corriger tout de suite.'}
+              </p>
+
+              <div className="mt-5 space-y-3">
+                {queueItems.length > 0 ? (
+                  queueItems.map((item) => (
+                    <div key={item.id} className="flex gap-3 rounded-[1.5rem] border border-white/10 bg-black/30 p-3">
+                      {item.thumbnailUrl ? (
+                        <img src={item.thumbnailUrl} alt="Miniature YouTube" className="h-16 w-28 rounded-xl object-cover" />
+                      ) : (
+                        <div className="flex h-16 w-28 items-center justify-center rounded-xl bg-white/5 text-xs text-white/40">no thumb</div>
+                      )}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex items-center gap-2">
+                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/55">
+                            #{item.position}
+                          </span>
+                          <span className="rounded-full border border-gold/15 bg-gold/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-gold/85">
+                            {item.status}
+                          </span>
+                        </div>
+                        <p className="mt-2 truncate font-semibold text-white/88">{item.title}</p>
+                        <p className="mt-1 text-xs text-white/55">Ajouté par {item.addedByLabel} · {formatDuration(item.durationSeconds)}</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/60">
+                    Toujours rien. La room est prête à encaisser son premier lien.
+                  </div>
+                )}
               </div>
             </div>
 
             <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-              <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Chat</p>
-              <h3 className="mt-3 text-2xl font-bold">Canal room</h3>
-              <div className="mt-5 rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/68">
-                Placeholder premium pour le chat live, les événements système et la modération. {isPrivate ? 'Accès réservé au cercle invité.' : 'Conversation ouverte à la room publique.'}
-              </div>
+              <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Ajouter un titre</p>
+              <h3 className="mt-3 text-2xl font-bold">Drop YouTube dans la file</h3>
+
+              {queueComposer ? (
+                <>
+                  <p className="mt-3 text-white/72">
+                    Colle un lien YouTube propre. Le titre est optionnel, sinon on garde une version basée sur l’identifiant vidéo.
+                  </p>
+                  <div className="mt-5 space-y-3">
+                    <input
+                      type="text"
+                      value={queueComposer.url}
+                      onChange={(event) => queueComposer.onUrlChange(event.target.value)}
+                      placeholder="https://www.youtube.com/watch?v=..."
+                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40"
+                    />
+                    <input
+                      type="text"
+                      value={queueComposer.title}
+                      onChange={(event) => queueComposer.onTitleChange(event.target.value)}
+                      placeholder="Titre custom optionnel"
+                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40"
+                    />
+                    {queueComposer.feedback ? (
+                      <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[queueComposer.feedback.tone]}`}>
+                        {queueComposer.feedback.text}
+                      </div>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={queueComposer.onSubmit}
+                    disabled={queueComposer.submitting}
+                    className="mt-5 rounded-full bg-gold px-5 py-3 font-semibold text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {queueComposer.submitting ? 'Ajout…' : 'Ajouter à la queue'}
+                  </button>
+                </>
+              ) : (
+                <div className="mt-5 rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/68">
+                  {preview
+                    ? 'Preview statique : la room montre la queue, mais elle ne persiste rien.'
+                    : !state.currentUser.isLoggedIn
+                      ? 'Connecte-toi pour empiler de vrais titres.'
+                      : 'Le formulaire live n’est pas branché ici.'}
+                </div>
+              )}
             </div>
           </div>
         </div>
