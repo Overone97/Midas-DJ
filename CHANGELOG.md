@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.0] - 2026-05-05
+
+### Added
+- Chat live par room avec historique court, envoi de messages et refresh temps réel via Supabase
+- Policy RLS `messages` pour autoriser l’envoi uniquement aux membres non bannis/non mutés et au owner
+
+### Changed
+- La room devient plus sociale : la scène sync peut maintenant se commenter en direct sans quitter le dancefloor
+
 ## [1.5.1] - 2026-05-05
 
 ### Added

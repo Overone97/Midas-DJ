@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RoomPageView } from '@/components/room-page';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import type { PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomPageState, RoomRole } from '@/lib/rooms';
+import type { ChatMessagePreview, PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomPageState, RoomRole } from '@/lib/rooms';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl } from '@/lib/youtube';
 
 type PresenceMeta = {
@@ -14,6 +14,11 @@ type PresenceMeta = {
 };
 
 type QueueFeedback = {
+  tone: 'neutral' | 'success' | 'error';
+  text: string;
+};
+
+type ChatFeedback = {
   tone: 'neutral' | 'success' | 'error';
   text: string;
 };
@@ -55,6 +60,14 @@ type PlaybackRow = {
   started_at: string | null;
   offset_seconds: number;
   updated_at: string;
+};
+
+type MessageRow = {
+  id: string;
+  content: string;
+  created_at: string;
+  user_id: string;
+  profiles?: { username?: string | null } | { username?: string | null }[] | null;
 };
 
 function flattenPresence(state: Record<string, PresenceMeta[] | undefined>) {
@@ -125,6 +138,16 @@ function mapPlaybackRow(row: PlaybackRow | null | undefined): PlaybackPreview | 
   };
 }
 
+function mapMessageRows(rows: MessageRow[]): ChatMessagePreview[] {
+  return rows.map((message, index) => ({
+    id: message.id,
+    content: message.content,
+    createdAt: message.created_at,
+    userId: message.user_id,
+    authorLabel: labelFromProfile(message.profiles, `Listener ${index + 1}`),
+  }));
+}
+
 function getCurrentOffset(playback?: PlaybackPreview) {
   if (!playback) {
     return 0;
@@ -144,6 +167,9 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   const [queueTitle, setQueueTitle] = useState('');
   const [queueSubmitting, setQueueSubmitting] = useState(false);
   const [queueFeedback, setQueueFeedback] = useState<QueueFeedback | null>(null);
+  const [chatMessage, setChatMessage] = useState('');
+  const [chatSubmitting, setChatSubmitting] = useState(false);
+  const [chatFeedback, setChatFeedback] = useState<ChatFeedback | null>(null);
 
   useEffect(() => {
     setState(initialState);
@@ -174,7 +200,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         setState((current) => ({
           ...current,
           status: 'missing',
-          currentUser: { isLoggedIn: Boolean(user), role: 'visitor', email: user?.email },
+          currentUser: { id: user?.id, isLoggedIn: Boolean(user), role: 'visitor', email: user?.email },
           room: {
             ...current.room,
             name: 'Room introuvable',
@@ -189,7 +215,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         return;
       }
 
-      const [{ data: ownerProfile }, { data: membership }, { data: membersData }, { data: queueItemsData }, { data: playbackData }] = await Promise.all([
+      const [{ data: ownerProfile }, { data: membership }, { data: membersData }, { data: queueItemsData }, { data: playbackData }, { data: messagesData }] = await Promise.all([
         supabase.from('profiles').select('username').eq('id', room.owner_id).maybeSingle(),
         user ? supabase.from('room_members').select('role').eq('room_id', room.id).eq('user_id', user.id).maybeSingle() : Promise.resolve({ data: null }),
         supabase.from('room_members').select('role, profiles!room_members_user_id_fkey(id, username)').eq('room_id', room.id).limit(12),
@@ -205,6 +231,13 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           .select('current_queue_item_id, dj_user_id, state, started_at, offset_seconds, updated_at')
           .eq('room_id', room.id)
           .maybeSingle(),
+        supabase
+          .from('messages')
+          .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(username)')
+          .eq('room_id', room.id)
+          .is('deleted_at', null)
+          .order('created_at', { ascending: false })
+          .limit(30),
       ]);
 
       if (cancelled) {
@@ -228,10 +261,11 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           ownerId: room.owner_id,
           queueDepth: queueItems.length,
         },
-        currentUser: { isLoggedIn: Boolean(user), role, email: user?.email },
+        currentUser: { id: user?.id, isLoggedIn: Boolean(user), role, email: user?.email },
         members: mapMemberRows((membersData as MemberRow[]) ?? []),
         queue: { items: queueItems },
         playback: mapPlaybackRow(playbackData as PlaybackRow | null),
+        chat: { messages: mapMessageRows((messagesData as MessageRow[]) ?? []).reverse() },
         presence: { enabled: true, connected: false, onlineCount: 0 },
       });
     }
@@ -361,6 +395,26 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       setState((current) => ({ ...current, playback: mapPlaybackRow(data as PlaybackRow | null) }));
     }
 
+    async function refreshMessages() {
+      const { data, error } = await supabase
+        .from('messages')
+        .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(username)')
+        .eq('room_id', roomId)
+        .is('deleted_at', null)
+        .order('created_at', { ascending: false })
+        .limit(30);
+
+      if (error) {
+        setChatFeedback((current) => current ?? { tone: 'error', text: error.message });
+        return;
+      }
+
+      setState((current) => ({
+        ...current,
+        chat: { messages: mapMessageRows((data as MessageRow[]) ?? []).reverse() },
+      }));
+    }
+
     const queueChannel = supabase
       .channel(`room-queue:${roomId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_items', filter: `room_id=eq.${roomId}` }, () => {
@@ -375,12 +429,21 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       })
       .subscribe();
 
+    const messagesChannel = supabase
+      .channel(`room-messages:${roomId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` }, () => {
+        void refreshMessages();
+      })
+      .subscribe();
+
     void refreshQueue();
     void refreshPlayback();
+    void refreshMessages();
 
     return () => {
       void supabase.removeChannel(queueChannel);
       void supabase.removeChannel(playbackChannel);
+      void supabase.removeChannel(messagesChannel);
     };
   }, [state.envReady, state.room.id]);
 
@@ -493,6 +556,59 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     }
   }
 
+  async function handleChatSubmit() {
+    if (!state.envReady || !state.room.id) {
+      setChatFeedback({ tone: 'error', text: 'Mode preview : le chat live ne part nulle part.' });
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setChatFeedback({ tone: 'error', text: 'Client Supabase indisponible.' });
+      return;
+    }
+
+    if (!state.currentUser.isLoggedIn) {
+      setChatFeedback({ tone: 'error', text: 'Connecte-toi avant de parler dans la room.' });
+      return;
+    }
+
+    const content = chatMessage.trim();
+    if (!content) {
+      setChatFeedback({ tone: 'error', text: 'Envoie au moins une vraie phrase, pas du vide.' });
+      return;
+    }
+
+    setChatSubmitting(true);
+    setChatFeedback({ tone: 'neutral', text: 'Message envoyé au dancefloor…' });
+
+    try {
+      const { data: authData } = await supabase.auth.getUser();
+      const user = authData.user;
+      if (!user) {
+        throw new Error('Session expirée. Recharge ou reconnecte-toi.');
+      }
+
+      const { error } = await supabase.from('messages').insert({
+        room_id: state.room.id,
+        user_id: user.id,
+        content,
+      });
+
+      if (error) {
+        throw error;
+      }
+
+      setChatMessage('');
+      setChatFeedback({ tone: 'success', text: 'Message lâché dans la room.' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Impossible d’envoyer ce message.';
+      setChatFeedback({ tone: 'error', text: message });
+    } finally {
+      setChatSubmitting(false);
+    }
+  }
+
   async function handleTogglePlayback(nextState: 'playing' | 'paused', currentOffset: number) {
     const supabase = getSupabaseBrowserClient();
     if (!supabase || !state.room.id || !state.playback) {
@@ -592,6 +708,13 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
             }
           : undefined
       }
+      chatComposer={{
+        value: chatMessage,
+        submitting: chatSubmitting,
+        feedback: chatFeedback,
+        onChange: setChatMessage,
+        onSubmit: () => void handleChatSubmit(),
+      }}
     />
   );
 }
