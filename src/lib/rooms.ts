@@ -53,6 +53,14 @@ export type PlaybackPreview = {
   updatedAt?: string | null;
 };
 
+export type ChatMessagePreview = {
+  id: string;
+  content: string;
+  authorLabel: string;
+  userId?: string;
+  createdAt: string;
+};
+
 export type RoomPageState = {
   status: 'live' | 'preview' | 'missing' | 'forbidden';
   envReady: boolean;
@@ -71,6 +79,7 @@ export type RoomPageState = {
     tags?: string[];
   };
   currentUser: {
+    id?: string;
     isLoggedIn: boolean;
     role: RoomRole;
     email?: string | null;
@@ -80,6 +89,9 @@ export type RoomPageState = {
     items: QueueItemPreview[];
   };
   playback?: PlaybackPreview;
+  chat?: {
+    messages: ChatMessagePreview[];
+  };
   presence?: {
     enabled: boolean;
     connected: boolean;

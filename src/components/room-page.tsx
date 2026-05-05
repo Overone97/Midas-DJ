@@ -23,6 +23,17 @@ type PlayerControlsProps = {
   onNextTrack: () => void;
 };
 
+type ChatComposerProps = {
+  value: string;
+  submitting: boolean;
+  feedback?: {
+    tone: 'neutral' | 'success' | 'error';
+    text: string;
+  } | null;
+  onChange: (value: string) => void;
+  onSubmit: () => void;
+};
+
 const roleLabels: Record<RoomRole, string> = {
   owner: 'Owner',
   mod: 'Mod',
@@ -57,10 +68,12 @@ export function RoomPageView({
   state,
   queueComposer,
   playerControls,
+  chatComposer,
 }: {
   state: RoomPageState;
   queueComposer?: QueueComposerProps;
   playerControls?: PlayerControlsProps;
+  chatComposer?: ChatComposerProps;
 }) {
   const isPrivate = state.room.type === 'private';
   const denied = state.status === 'forbidden';
@@ -69,6 +82,7 @@ export function RoomPageView({
   const onlineMembers = state.members.filter((member) => member.online).length;
   const queueItems = state.queue?.items ?? [];
   const currentTrack = queueItems.find((item) => item.id === state.playback?.currentQueueItemId) ?? queueItems.find((item) => item.status === 'playing') ?? queueItems[0];
+  const chatMessages = state.chat?.messages ?? [];
 
   return (
     <section className="space-y-8">
@@ -209,7 +223,7 @@ export function RoomPageView({
             )}
           </div>
 
-          <div className="grid gap-5 lg:grid-cols-2">
+          <div className="grid gap-5 xl:grid-cols-[1fr_1fr_0.95fr]">
             <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
               <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Queue</p>
               <h3 className="mt-3 text-2xl font-bold">File collaborative</h3>
@@ -296,6 +310,69 @@ export function RoomPageView({
                     : !state.currentUser.isLoggedIn
                       ? 'Connecte-toi pour empiler de vrais titres.'
                       : 'Le formulaire live n’est pas branché ici.'}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+              <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Chat live</p>
+              <h3 className="mt-3 text-2xl font-bold">Le dancefloor parle enfin</h3>
+              <p className="mt-3 text-white/72">
+                Petit chat temps réel pour réagir au set sans quitter la room. C’était la suite logique, franchement.
+              </p>
+
+              <div className="mt-5 space-y-3 rounded-[1.5rem] border border-white/10 bg-black/30 p-3">
+                {chatMessages.length > 0 ? (
+                  chatMessages.slice(-12).map((message) => (
+                    <div key={message.id} className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">
+                      <div className="flex items-center justify-between gap-3">
+                        <p className="text-sm font-semibold text-white/88">{message.authorLabel}</p>
+                        <p className="text-[11px] uppercase tracking-[0.16em] text-white/38">
+                          {new Date(message.createdAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}
+                        </p>
+                      </div>
+                      <p className="mt-2 text-sm leading-6 text-white/72">{message.content}</p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/60">
+                    Pas encore de messages. Quelqu’un doit bien casser la glace.
+                  </div>
+                )}
+              </div>
+
+              {chatComposer && state.currentUser.isLoggedIn ? (
+                <>
+                  <div className="mt-4 space-y-3">
+                    <textarea
+                      value={chatComposer.value}
+                      onChange={(event) => chatComposer.onChange(event.target.value)}
+                      placeholder="Balance une réaction sur le morceau, un lien, une vanne, un skip bien senti…"
+                      rows={4}
+                      className="w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40"
+                    />
+                    {chatComposer.feedback ? (
+                      <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[chatComposer.feedback.tone]}`}>
+                        {chatComposer.feedback.text}
+                      </div>
+                    ) : null}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={chatComposer.onSubmit}
+                    disabled={chatComposer.submitting}
+                    className="mt-4 rounded-full border border-white/15 px-5 py-3 font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60"
+                  >
+                    {chatComposer.submitting ? 'Envoi…' : 'Envoyer dans la room'}
+                  </button>
+                </>
+              ) : (
+                <div className="mt-4 rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/68">
+                  {preview
+                    ? 'Preview statique : le chat n’est pas branché hors backend.'
+                    : !state.currentUser.isLoggedIn
+                      ? 'Connecte-toi pour chatter avec la room.'
+                      : 'Le chat live attend son formulaire.'}
                 </div>
               )}
             </div>
