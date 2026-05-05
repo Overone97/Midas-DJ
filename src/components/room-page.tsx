@@ -138,7 +138,7 @@ export function RoomPageView({
         </div>
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[0.75fr_1.25fr]">
+      <div className="grid gap-6 xl:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="space-y-6">
           <div className="rounded-[2rem] border border-white/10 bg-black/20 p-6">
             <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Membres</p>
@@ -152,16 +152,16 @@ export function RoomPageView({
               {state.members.length > 0 ? (
                 state.members.map((member) => (
                   <div key={member.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    <div className="flex items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
                       <span className={`h-2.5 w-2.5 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.9)]' : 'bg-white/20'}`} />
-                      <span className="font-medium text-white/88">{member.label}</span>
+                      <span className="truncate font-medium text-white/88">{member.label}</span>
                     </div>
                     <span className={`rounded-full border px-3 py-1 text-xs ${roleAccent[member.role]}`}>{roleLabels[member.role]}</span>
                   </div>
                 ))
               ) : (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/60">
-                  Aucun roster exploitable pour l’instant. On garde un fallback propre jusqu’à brancher quelque chose de moins décoratif.
+                  Aucun roster exploitable pour l’instant.
                 </div>
               )}
             </div>
@@ -223,105 +223,93 @@ export function RoomPageView({
             )}
           </div>
 
-          <div className="grid gap-5 xl:grid-cols-[1fr_1fr_0.95fr]">
-            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-              <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Queue</p>
-              <h3 className="mt-3 text-2xl font-bold">File collaborative</h3>
-              <p className="mt-3 text-white/72">
-                {queueItems.length > 0
-                  ? `${queueItems.length} titre${queueItems.length > 1 ? 's' : ''} visible${queueItems.length > 1 ? 's' : ''} dans la file.`
-                  : 'La queue est vide. Ça, on peut le corriger tout de suite.'}
-              </p>
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,0.92fr)_minmax(0,1.08fr)]">
+            <div className="space-y-5">
+              <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+                <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Queue</p>
+                <h3 className="mt-3 text-2xl font-bold">File collaborative</h3>
+                <p className="mt-3 text-white/72">
+                  {queueItems.length > 0
+                    ? `${queueItems.length} titre${queueItems.length > 1 ? 's' : ''} visible${queueItems.length > 1 ? 's' : ''} dans la file.`
+                    : 'La queue est vide. Ça, on peut le corriger tout de suite.'}
+                </p>
 
-              <div className="mt-5 space-y-3">
-                {queueItems.length > 0 ? (
-                  queueItems.map((item) => (
-                    <div key={item.id} className="flex gap-3 rounded-[1.5rem] border border-white/10 bg-black/30 p-3">
-                      {item.thumbnailUrl ? (
-                        <img src={item.thumbnailUrl} alt="Miniature YouTube" className="h-16 w-28 rounded-xl object-cover" />
-                      ) : (
-                        <div className="flex h-16 w-28 items-center justify-center rounded-xl bg-white/5 text-xs text-white/40">no thumb</div>
-                      )}
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center gap-2">
-                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/55">
-                            #{item.position}
-                          </span>
-                          <span className="rounded-full border border-gold/15 bg-gold/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-gold/85">
-                            {item.status}
-                          </span>
+                <div className="mt-5 space-y-3">
+                  {queueItems.length > 0 ? (
+                    queueItems.map((item) => (
+                      <div key={item.id} className="flex gap-3 rounded-[1.5rem] border border-white/10 bg-black/30 p-3">
+                        {item.thumbnailUrl ? (
+                          <img src={item.thumbnailUrl} alt="Miniature YouTube" className="h-16 w-28 rounded-xl object-cover" />
+                        ) : (
+                          <div className="flex h-16 w-28 items-center justify-center rounded-xl bg-white/5 text-xs text-white/40">no thumb</div>
+                        )}
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/55">#{item.position}</span>
+                            <span className="rounded-full border border-gold/15 bg-gold/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-gold/85">{item.status}</span>
+                          </div>
+                          <p className="mt-2 truncate font-semibold text-white/88">{item.title}</p>
+                          <p className="mt-1 text-xs text-white/55">Ajouté par {item.addedByLabel} · {formatDuration(item.durationSeconds)}</p>
                         </div>
-                        <p className="mt-2 truncate font-semibold text-white/88">{item.title}</p>
-                        <p className="mt-1 text-xs text-white/55">Ajouté par {item.addedByLabel} · {formatDuration(item.durationSeconds)}</p>
                       </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/60">Toujours rien. La room est prête à encaisser son premier lien.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
+                <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Ajouter un titre</p>
+                <h3 className="mt-3 text-2xl font-bold">Drop YouTube dans la file</h3>
+
+                {queueComposer ? (
+                  <>
+                    <p className="mt-3 text-white/72">Colle un lien YouTube propre. Le titre est optionnel, sinon on garde une version basée sur l’identifiant vidéo.</p>
+                    <div className="mt-5 space-y-3">
+                      <input
+                        type="text"
+                        value={queueComposer.url}
+                        onChange={(event) => queueComposer.onUrlChange(event.target.value)}
+                        placeholder="https://www.youtube.com/watch?v=..."
+                        className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40"
+                      />
+                      <input
+                        type="text"
+                        value={queueComposer.title}
+                        onChange={(event) => queueComposer.onTitleChange(event.target.value)}
+                        placeholder="Titre custom optionnel"
+                        className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40"
+                      />
+                      {queueComposer.feedback ? <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[queueComposer.feedback.tone]}`}>{queueComposer.feedback.text}</div> : null}
                     </div>
-                  ))
+                    <button
+                      type="button"
+                      onClick={queueComposer.onSubmit}
+                      disabled={queueComposer.submitting}
+                      className="mt-5 rounded-full bg-gold px-5 py-3 font-semibold text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      {queueComposer.submitting ? 'Ajout…' : 'Ajouter à la queue'}
+                    </button>
+                  </>
                 ) : (
-                  <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/60">
-                    Toujours rien. La room est prête à encaisser son premier lien.
+                  <div className="mt-5 rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/68">
+                    {preview
+                      ? 'Preview statique : la room montre la queue, mais elle ne persiste rien.'
+                      : !state.currentUser.isLoggedIn
+                        ? 'Connecte-toi pour empiler de vrais titres.'
+                        : 'Le formulaire live n’est pas branché ici.'}
                   </div>
                 )}
               </div>
             </div>
 
             <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
-              <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Ajouter un titre</p>
-              <h3 className="mt-3 text-2xl font-bold">Drop YouTube dans la file</h3>
-
-              {queueComposer ? (
-                <>
-                  <p className="mt-3 text-white/72">
-                    Colle un lien YouTube propre. Le titre est optionnel, sinon on garde une version basée sur l’identifiant vidéo.
-                  </p>
-                  <div className="mt-5 space-y-3">
-                    <input
-                      type="text"
-                      value={queueComposer.url}
-                      onChange={(event) => queueComposer.onUrlChange(event.target.value)}
-                      placeholder="https://www.youtube.com/watch?v=..."
-                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40"
-                    />
-                    <input
-                      type="text"
-                      value={queueComposer.title}
-                      onChange={(event) => queueComposer.onTitleChange(event.target.value)}
-                      placeholder="Titre custom optionnel"
-                      className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40"
-                    />
-                    {queueComposer.feedback ? (
-                      <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[queueComposer.feedback.tone]}`}>
-                        {queueComposer.feedback.text}
-                      </div>
-                    ) : null}
-                  </div>
-                  <button
-                    type="button"
-                    onClick={queueComposer.onSubmit}
-                    disabled={queueComposer.submitting}
-                    className="mt-5 rounded-full bg-gold px-5 py-3 font-semibold text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60"
-                  >
-                    {queueComposer.submitting ? 'Ajout…' : 'Ajouter à la queue'}
-                  </button>
-                </>
-              ) : (
-                <div className="mt-5 rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/68">
-                  {preview
-                    ? 'Preview statique : la room montre la queue, mais elle ne persiste rien.'
-                    : !state.currentUser.isLoggedIn
-                      ? 'Connecte-toi pour empiler de vrais titres.'
-                      : 'Le formulaire live n’est pas branché ici.'}
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
               <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Chat live</p>
               <h3 className="mt-3 text-2xl font-bold">Le dancefloor parle enfin</h3>
-              <p className="mt-3 text-white/72">
-                Petit chat temps réel pour réagir au set sans quitter la room. C’était la suite logique, franchement.
-              </p>
+              <p className="mt-3 text-white/72">Petit chat temps réel pour réagir au set sans quitter la room.</p>
 
-              <div className="mt-5 space-y-3 rounded-[1.5rem] border border-white/10 bg-black/30 p-3">
+              <div className="mt-5 max-h-[28rem] space-y-3 overflow-y-auto rounded-[1.5rem] border border-white/10 bg-black/30 p-3">
                 {chatMessages.length > 0 ? (
                   chatMessages.slice(-12).map((message) => (
                     <div key={message.id} className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">
@@ -335,9 +323,7 @@ export function RoomPageView({
                     </div>
                   ))
                 ) : (
-                  <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/60">
-                    Pas encore de messages. Quelqu’un doit bien casser la glace.
-                  </div>
+                  <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/60">Pas encore de messages. Quelqu’un doit bien casser la glace.</div>
                 )}
               </div>
 
@@ -351,11 +337,7 @@ export function RoomPageView({
                       rows={4}
                       className="w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40"
                     />
-                    {chatComposer.feedback ? (
-                      <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[chatComposer.feedback.tone]}`}>
-                        {chatComposer.feedback.text}
-                      </div>
-                    ) : null}
+                    {chatComposer.feedback ? <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[chatComposer.feedback.tone]}`}>{chatComposer.feedback.text}</div> : null}
                   </div>
                   <button
                     type="button"

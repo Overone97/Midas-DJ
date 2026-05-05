@@ -263,13 +263,13 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const progressWidth = Math.min(100, ((liveOffset % 240) / 240) * 100);
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1.45fr_0.75fr]">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_340px]">
       <div className="overflow-hidden rounded-[1.9rem] border border-gold/20 bg-[radial-gradient(circle_at_top,#eab30822,transparent_32%),radial-gradient(circle_at_20%_70%,#9333ea22,transparent_28%),linear-gradient(180deg,#181224,#0a0811)] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.5)]">
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <div>
+        <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div className="min-w-0">
             <p className="text-xs uppercase tracking-[0.32em] text-gold/70">Main stage</p>
-            <h4 className="mt-2 text-2xl font-black text-white">{currentTrack?.title ?? 'Aucun titre chargé'}</h4>
-            <p className="mt-1 text-sm text-white/58">Une scène pensée comme un vrai mini dancefloor, pas juste une iframe posée au milieu.</p>
+            <h4 className="mt-2 line-clamp-2 text-2xl font-black text-white">{currentTrack?.title ?? 'Aucun titre chargé'}</h4>
+            <p className="mt-1 text-sm text-white/58">Une vraie scène compacte, avec la vidéo au centre et le booth autour.</p>
           </div>
           <span className="rounded-full border border-gold/20 bg-gold/10 px-4 py-2 text-xs uppercase tracking-[0.22em] text-gold">
             {stageBadge}
@@ -283,21 +283,70 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
             <div className="absolute left-1/2 top-[18%] h-40 w-80 -translate-x-1/2 rounded-full bg-sky-400/10 blur-3xl" />
           </div>
 
-          <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/75 to-transparent px-4 py-3 text-xs uppercase tracking-[0.22em] text-white/72">
+          <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 bg-gradient-to-b from-black/75 to-transparent px-4 py-3 text-xs uppercase tracking-[0.22em] text-white/72">
             <span>DJ booth · {ownerLabel}</span>
             <span>{syncedCount} sync en live</span>
           </div>
 
-          <div className="relative z-[1] grid gap-4 p-4 lg:grid-cols-[0.82fr_1.18fr] lg:items-end">
-            <div className="order-2 lg:order-1">
+          <div className="relative z-[1] p-4">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_260px]">
+              <div className="space-y-4">
+                <div className="relative overflow-hidden rounded-[1.45rem] border border-white/10 bg-black shadow-[0_12px_45px_rgba(0,0,0,0.55)]">
+                  <div className="aspect-video w-full bg-black">
+                    {currentTrack ? (
+                      <div ref={playerHostRef} className="h-full w-full [&_iframe]:h-full [&_iframe]:w-full" />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-white/55">Ajoute un titre pour lancer la scène.</div>
+                    )}
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-4 pb-4 pt-10">
+                    <div className="flex items-center justify-between gap-3 text-sm text-white/80">
+                      <span>Timing room · {formatClock(liveOffset)}</span>
+                      <span>{canControl ? 'Mode DJ' : 'Audience sync'}</span>
+                    </div>
+                    <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                      <div className="h-full rounded-full bg-gradient-to-r from-gold to-amber-300 transition-all" style={{ width: `${progressWidth}%` }} />
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.35rem] border border-white/10 bg-black/30 px-4 py-4 backdrop-blur-sm">
+                  <div className="mb-3 flex items-center justify-between gap-3">
+                    <p className="text-xs uppercase tracking-[0.26em] text-white/48">Crowd</p>
+                    <p className="text-xs text-white/55">{syncedCount > 0 ? `${syncedCount} personne${syncedCount > 1 ? 's' : ''} calée${syncedCount > 1 ? 's' : ''}` : 'Le floor attend du monde'}</p>
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {crowdMembers.length > 0 ? (
+                      crowdMembers.map((member, index) => (
+                        <div
+                          key={member.id}
+                          className={`group flex items-center gap-2 rounded-full border px-3 py-2 transition ${member.online ? 'border-emerald-400/20 bg-emerald-400/10' : 'border-white/10 bg-white/5'}`}
+                          style={{ transform: `translateY(${playback?.state === 'playing' ? (index % 2 === 0 ? '-2px' : '2px') : '0px'})` }}
+                        >
+                          <span className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-black ${member.online ? 'bg-emerald-300 text-black' : 'bg-white/10 text-white/70'}`}>
+                            {getInitials(member.label) || '??'}
+                          </span>
+                          <div>
+                            <p className="max-w-[7rem] truncate text-sm font-semibold text-white/85">{member.label}</p>
+                            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">{member.online ? 'on beat' : 'idle'}</p>
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/55">La crowd est encore vide.</div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="rounded-[1.4rem] border border-white/10 bg-black/35 p-4 backdrop-blur-sm">
                 <div className="mb-4 flex items-center gap-4">
                   <div className="flex h-20 w-20 items-center justify-center rounded-[1.25rem] border border-gold/30 bg-[linear-gradient(180deg,#3b2a11,#140f08)] text-2xl font-black text-gold shadow-[0_0_30px_rgba(234,179,8,0.2)]">
                     {getInitials(ownerLabel) || 'DJ'}
                   </div>
-                  <div>
+                  <div className="min-w-0">
                     <p className="text-xs uppercase tracking-[0.24em] text-white/45">Now performing</p>
-                    <h5 className="mt-1 text-xl font-black text-white">{ownerLabel}</h5>
+                    <h5 className="mt-1 truncate text-xl font-black text-white">{ownerLabel}</h5>
                     <p className="mt-1 text-sm text-white/58">{canControl ? 'Tu pilotes la scène.' : 'Tu suis le set en audience sync.'}</p>
                   </div>
                 </div>
@@ -305,61 +354,17 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                 <div className="grid grid-cols-8 items-end gap-2 rounded-[1.1rem] border border-white/10 bg-white/5 p-3">
                   {Array.from({ length: 8 }).map((_, index) => {
                     const base = playback?.state === 'playing' ? 24 + ((index * 11 + Math.floor(liveOffset * 10)) % 50) : 18;
-                    return (
-                      <span
-                        key={index}
-                        className="rounded-full bg-gradient-to-t from-gold via-amber-300 to-white/90 transition-all"
-                        style={{ height: `${base}px` }}
-                      />
-                    );
+                    return <span key={index} className="rounded-full bg-gradient-to-t from-gold via-amber-300 to-white/90 transition-all" style={{ height: `${base}px` }} />;
                   })}
                 </div>
-              </div>
-            </div>
 
-            <div className="order-1 lg:order-2">
-              <div className="relative overflow-hidden rounded-[1.4rem] border border-white/10 bg-black/45 shadow-[0_10px_40px_rgba(0,0,0,0.45)]">
-                <div className="aspect-video w-full bg-black">
-                  {currentTrack ? <div ref={playerHostRef} className="h-full w-full" /> : <div className="flex h-full items-center justify-center text-white/55">Ajoute un titre pour lancer la scène.</div>}
-                </div>
-                <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/45 to-transparent px-4 pb-4 pt-10">
-                  <div className="flex items-center justify-between text-sm text-white/80">
-                    <span>Timing room · {formatClock(liveOffset)}</span>
-                    <span>{canControl ? 'Mode DJ' : 'Mode audience sync'}</span>
-                  </div>
-                  <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                    <div className="h-full rounded-full bg-gradient-to-r from-gold to-amber-300 transition-all" style={{ width: `${progressWidth}%` }} />
-                  </div>
+                <div className="mt-4 rounded-[1.25rem] border border-white/10 bg-white/5 p-4 text-sm text-white/64">
+                  <p>État partagé · {playback?.state ?? 'aucun'}</p>
+                  <p className="mt-1">Offset room · {formatClock(getExpectedOffset(playback))}</p>
+                  <p className="mt-1 truncate">Track live · {currentTrack?.youtubeVideoId ?? '—'}</p>
+                  <p className="mt-1">Booth owner · {ownerLabel}</p>
                 </div>
               </div>
-            </div>
-          </div>
-
-          <div className="relative z-[1] border-t border-white/10 bg-black/30 px-4 py-4">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs uppercase tracking-[0.26em] text-white/48">Crowd</p>
-              <p className="text-xs text-white/55">{syncedCount > 0 ? `${syncedCount} personne${syncedCount > 1 ? 's' : ''} calée${syncedCount > 1 ? 's' : ''}` : 'Le floor attend du monde'}</p>
-            </div>
-            <div className="flex flex-wrap gap-3">
-              {crowdMembers.length > 0 ? (
-                crowdMembers.map((member, index) => (
-                  <div
-                    key={member.id}
-                    className={`group flex items-end gap-2 rounded-full border px-3 py-2 transition ${member.online ? 'border-emerald-400/20 bg-emerald-400/10' : 'border-white/10 bg-white/5'}`}
-                    style={{ transform: `translateY(${playback?.state === 'playing' ? (index % 2 === 0 ? '-2px' : '2px') : '0px'})` }}
-                  >
-                    <span className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-black ${member.online ? 'bg-emerald-300 text-black' : 'bg-white/10 text-white/70'}`}>
-                      {getInitials(member.label) || '??'}
-                    </span>
-                    <div>
-                      <p className="max-w-[7rem] truncate text-sm font-semibold text-white/85">{member.label}</p>
-                      <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">{member.online ? 'on beat' : 'idle'}</p>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/55">La crowd est encore vide.</div>
-              )}
             </div>
           </div>
         </div>
@@ -367,10 +372,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
 
       <div className="rounded-[1.8rem] border border-white/10 bg-black/25 p-5 text-white/78">
         <p className="text-xs uppercase tracking-[0.3em] text-gold/70">Scene controls</p>
-        <h4 className="mt-3 text-2xl font-black text-white">Le booth commence à respirer</h4>
-        <p className="mt-3 text-sm leading-6 text-white/68">
-          Le timing suit un état partagé en base, et la scène montre enfin un booth DJ + une crowd crédible au lieu d’un simple cadre vidéo triste.
-        </p>
+        <h4 className="mt-3 text-2xl font-black text-white">Simple et propre</h4>
+        <p className="mt-3 text-sm leading-6 text-white/68">On garde les contrôles utiles à droite, sans écraser la vidéo au centre.</p>
 
         <div className="mt-5 grid gap-3">
           <button
@@ -417,17 +420,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
               disabled={!currentTrack}
               className="mt-3 w-full accent-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <p className="mt-2 text-xs leading-5 text-emerald-50/80">
-              La vidéo part toute seule en muet. Dès que tu touches le volume, on déverrouille l’audio local si le navigateur l’autorise.
-            </p>
+            <p className="mt-2 text-xs leading-5 text-emerald-50/80">La vidéo démarre en muet. Toucher le volume sert juste à déverrouiller l’audio local.</p>
           </div>
-        </div>
-
-        <div className="mt-6 rounded-[1.25rem] border border-white/10 bg-white/5 p-4 text-sm text-white/64">
-          <p>État partagé · {playback?.state ?? 'aucun'}</p>
-          <p className="mt-1">Offset room · {formatClock(getExpectedOffset(playback))}</p>
-          <p className="mt-1">Track live · {currentTrack?.youtubeVideoId ?? '—'}</p>
-          <p className="mt-1">Booth owner · {ownerLabel}</p>
         </div>
       </div>
     </div>
