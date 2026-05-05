@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.1] - 2026-05-05
+
+### Fixed
+- Déblocage audio local du player YouTube renforcé : le clic utilisateur force maintenant seek + play + unmute dans le même geste
+- Réduction du cas où un participant reste silencieux malgré le bouton d’activation audio
+
 ## [1.6.0] - 2026-05-05
 
 ### Added
