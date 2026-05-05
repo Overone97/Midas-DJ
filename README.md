@@ -1,6 +1,6 @@
 # Midas DJ
 
-**Version:** 1.4.3
+**Version:** 1.5.0
 
 Midas DJ est une plateforme d’écoute sociale en temps réel, inspirée de plug.dj et repensée pour le web moderne.
 
@@ -14,7 +14,7 @@ Créer une expérience où l’on peut :
 - prendre la main comme DJ à tour de rôle ;
 - voter, skipper et modérer sans transformer la room en zoo.
 
-## Scope de la release 1.4.3
+## Scope de la release 1.5.0
 
 Cette release fait enfin entrer la musique dans la room :
 - **queue YouTube réelle** branchée à Supabase ;
@@ -76,8 +76,8 @@ Midas DJ doit respirer :
 
 ## Prochaines étapes recommandées
 
-1. Poser la synchro temps réel de playback.
-2. Ajouter le chat live.
-3. Gérer skip / like / rotation DJ.
-4. Préparer les actions owner/mod directement depuis la page room.
-5. Renforcer les règles d’accès et les garde-fous sur les rooms privées.
+1. Ajouter le chat live.
+2. Gérer skip / like / rotation DJ plus finement.
+3. Préparer les actions owner/mod directement depuis la page room.
+4. Renforcer les règles d’accès et les garde-fous sur les rooms privées.
+5. Remplacer l’embed piloté par une expérience encore plus proche de plug.dj côté scène/avatar.

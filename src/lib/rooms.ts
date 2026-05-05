@@ -42,6 +42,17 @@ export type QueueItemPreview = {
   addedByLabel: string;
 };
 
+export type PlaybackMode = 'playing' | 'paused' | 'ended';
+
+export type PlaybackPreview = {
+  currentQueueItemId?: string | null;
+  djUserId?: string | null;
+  state: PlaybackMode;
+  startedAt?: string | null;
+  offsetSeconds: number;
+  updatedAt?: string | null;
+};
+
 export type RoomPageState = {
   status: 'live' | 'preview' | 'missing' | 'forbidden';
   envReady: boolean;
@@ -68,6 +79,7 @@ export type RoomPageState = {
   queue?: {
     items: QueueItemPreview[];
   };
+  playback?: PlaybackPreview;
   presence?: {
     enabled: boolean;
     connected: boolean;
@@ -198,6 +210,14 @@ export function getPreviewRoomState(slug: string): RoomPageState {
           addedByLabel: featured.type === 'private' ? 'Crew invité' : 'Nora Pulse',
         },
       ],
+    },
+    playback: {
+      currentQueueItemId: `${featured.slug}-1`,
+      djUserId: 'host',
+      state: 'playing',
+      startedAt: new Date(Date.now() - 42_000).toISOString(),
+      offsetSeconds: 0,
+      updatedAt: new Date().toISOString(),
     },
   };
 }
