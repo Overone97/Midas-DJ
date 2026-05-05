@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.3] - 2026-05-05
+
+### Fixed
+- Les rooms custom ouvertes via `?slug=` rechargent maintenant bien la vraie room Supabase, même quand le slug n’existe pas dans les previews statiques
+- Le fallback "Room introuvable" ne bloque plus l’hydratation live côté client
+
 ## [1.4.2] - 2026-05-05
 
 ### Fixed
