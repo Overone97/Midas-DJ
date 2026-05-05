@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.7] - 2026-05-05
+
+### Changed
+- Lissage visuel de la scène pour coller davantage à l’énergie plug.dj : néons, booth plus assumé, crowd plus lisible, panneau de contrôle plus cohérent
+- Contrastes et accents couleur retravaillés pour donner une vibe plus club sans casser le layout existant
+
 ## [1.6.6] - 2026-05-05
 
 ### Fixed
