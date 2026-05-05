@@ -193,7 +193,9 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     }
 
     player.setVolume(localVolume);
-    if (audioUnlockedRef.current || hasInteracted) {
+    if (localVolume <= 0) {
+      player.mute();
+    } else if (audioUnlockedRef.current || hasInteracted) {
       player.unMute();
     } else {
       player.mute();
@@ -209,7 +211,11 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     audioUnlockedRef.current = true;
     setHasInteracted(true);
     player.setVolume(nextVolume);
-    player.unMute();
+    if (nextVolume <= 0) {
+      player.mute();
+    } else {
+      player.unMute();
+    }
     player.playVideo();
     lastPlayAttemptRef.current = Date.now();
 
@@ -225,7 +231,11 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
       }
 
       currentPlayer.setVolume(nextVolume);
-      currentPlayer.unMute();
+      if (nextVolume <= 0) {
+        currentPlayer.mute();
+      } else {
+        currentPlayer.unMute();
+      }
 
       if (playback?.state === 'playing') {
         currentPlayer.playVideo();
