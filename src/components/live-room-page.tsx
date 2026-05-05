@@ -119,7 +119,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
 
-    if (!supabase || !initialState.envReady) {
+    if (!supabase) {
       return;
     }
 
@@ -218,7 +218,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     return () => {
       cancelled = true;
     };
-  }, [initialState.envReady, initialState.room.slug]);
+  }, [initialState.room.slug]);
 
   useEffect(() => {
     if (!state.envReady || !state.room.id) {
