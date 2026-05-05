@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.2] - 2026-05-05
+
+### Fixed
+- Les visiteurs authentifiés d’une room publique sont maintenant auto-inscrits comme membres à l’ouverture, ce qui débloque enfin le chat et les autres actions room
+- Le player force mieux l’autoplay en muet au chargement et remplace le vieux bouton de son par un vrai contrôle de volume local
+
 ## [1.6.1] - 2026-05-05
 
 ### Fixed
