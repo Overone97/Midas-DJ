@@ -215,9 +215,28 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         return;
       }
 
-      const [{ data: ownerProfile }, { data: membership }, { data: membersData }, { data: queueItemsData }, { data: playbackData }, { data: messagesData }] = await Promise.all([
+      let membershipData: MembershipRow | null = null;
+
+      if (user) {
+        const { data: membership } = await supabase.from('room_members').select('role').eq('room_id', room.id).eq('user_id', user.id).maybeSingle();
+
+        membershipData = (membership as MembershipRow | null) ?? null;
+
+        if (!membershipData && room.type === 'public' && user.id !== room.owner_id) {
+          const { error: joinError } = await supabase.from('room_members').upsert({
+            room_id: room.id,
+            user_id: user.id,
+            role: 'member',
+          });
+
+          if (!joinError) {
+            membershipData = { role: 'member' };
+          }
+        }
+      }
+
+      const [{ data: ownerProfile }, { data: membersData }, { data: queueItemsData }, { data: playbackData }, { data: messagesData }] = await Promise.all([
         supabase.from('profiles').select('username').eq('id', room.owner_id).maybeSingle(),
-        user ? supabase.from('room_members').select('role').eq('room_id', room.id).eq('user_id', user.id).maybeSingle() : Promise.resolve({ data: null }),
         supabase.from('room_members').select('role, profiles!room_members_user_id_fkey(id, username)').eq('room_id', room.id).limit(12),
         supabase
           .from('queue_items')
@@ -244,7 +263,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         return;
       }
 
-      const role = user ? ((membership as MembershipRow | null)?.role ?? (user.id === room.owner_id ? 'owner' : 'visitor')) : 'visitor';
+      const role = user ? (membershipData?.role ?? (user.id === room.owner_id ? 'owner' : 'visitor')) : 'visitor';
       const denied = room.type === 'private' && role === 'visitor';
       const queueItems = mapQueueRows((queueItemsData as QueueRow[]) ?? []);
 

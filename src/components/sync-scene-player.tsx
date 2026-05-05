@@ -34,11 +34,13 @@ type YouTubePlayer = {
   destroy: () => void;
   getCurrentTime: () => number;
   getPlayerState: () => number;
+  getVolume: () => number;
   loadVideoById: (videoId: string, startSeconds?: number) => void;
   mute: () => void;
   pauseVideo: () => void;
   playVideo: () => void;
   seekTo: (seconds: number, allowSeekAhead: boolean) => void;
+  setVolume: (volume: number) => void;
   unMute: () => void;
 };
 
@@ -117,6 +119,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const [playerReady, setPlayerReady] = useState(false);
   const [liveOffset, setLiveOffset] = useState(0);
   const [hasInteracted, setHasInteracted] = useState(false);
+  const [localVolume, setLocalVolume] = useState(80);
 
   const currentTrack = track;
   const syncedMembers = members.filter((member) => member.online);
@@ -157,7 +160,13 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           onReady: () => {
             readyRef.current = true;
             setPlayerReady(true);
+            playerRef.current?.setVolume(80);
             playerRef.current?.mute();
+            if (playback?.state === 'playing') {
+              const expected = getExpectedOffset(playback);
+              playerRef.current?.seekTo(expected, true);
+              playerRef.current?.playVideo();
+            }
           },
         },
       });
@@ -232,7 +241,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     return 'set terminé';
   }, [playback]);
 
-  function unlockLocalAudio() {
+  function unlockLocalAudio(nextVolume = localVolume) {
     if (!playerRef.current || !currentTrack) {
       return;
     }
@@ -241,6 +250,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
 
     setHasInteracted(true);
     playerRef.current.seekTo(expected, true);
+
+    playerRef.current.setVolume(nextVolume);
 
     if (playback?.state === 'playing') {
       playerRef.current.playVideo();
@@ -384,16 +395,32 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           >
             Morceau suivant
           </button>
-          <button
-            type="button"
-            onClick={() => {
-              unlockLocalAudio();
-            }}
-            disabled={!currentTrack}
-            className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 font-semibold text-emerald-50 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Activer le son local
-          </button>
+          <div className="rounded-[1.5rem] border border-emerald-400/20 bg-emerald-400/10 px-4 py-4">
+            <div className="flex items-center justify-between gap-3 text-sm font-semibold text-emerald-50">
+              <span>Volume local</span>
+              <span>{localVolume}%</span>
+            </div>
+            <input
+              type="range"
+              min={0}
+              max={100}
+              step={1}
+              value={localVolume}
+              onChange={(event) => {
+                const nextVolume = Number(event.target.value);
+                setLocalVolume(nextVolume);
+                if (!currentTrack) {
+                  return;
+                }
+                unlockLocalAudio(nextVolume);
+              }}
+              disabled={!currentTrack}
+              className="mt-3 w-full accent-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+            />
+            <p className="mt-2 text-xs leading-5 text-emerald-50/80">
+              La vidéo part toute seule en muet. Dès que tu touches le volume, on déverrouille l’audio local si le navigateur l’autorise.
+            </p>
+          </div>
         </div>
 
         <div className="mt-6 rounded-[1.25rem] border border-white/10 bg-white/5 p-4 text-sm text-white/64">
