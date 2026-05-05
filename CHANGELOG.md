@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.3] - 2026-05-05
+
+### Changed
+- Refonte du layout room pour quelque chose de plus compact et plus proche d’une vraie scène plug.dj
+- La vidéo reprend la place centrale et l’iframe YouTube remplit explicitement son conteneur
+- Les panneaux queue/chat sont rééquilibrés pour éviter l’effet étiré sur grand écran
+
 ## [1.6.2] - 2026-05-05
 
 ### Fixed
