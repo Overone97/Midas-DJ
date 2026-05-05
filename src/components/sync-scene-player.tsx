@@ -116,7 +116,10 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const readyRef = useRef(false);
   const trackIdRef = useRef<string | undefined>(track?.id);
   const followUpSyncRef = useRef<number | null>(null);
+  const audioRetryRef = useRef<number | null>(null);
   const lastPlayAttemptRef = useRef(0);
+  const lastSeekRef = useRef(0);
+  const audioUnlockedRef = useRef(false);
   const [playerReady, setPlayerReady] = useState(false);
   const [liveOffset, setLiveOffset] = useState(0);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -148,8 +151,12 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     }
 
     if (playback?.state === 'playing') {
-      if (drift > (mode === 'hard' ? 0.75 : 1.35)) {
+      const seekThreshold = mode === 'hard' ? 1.1 : 2.4;
+      const canSeekNow = now - lastSeekRef.current > 5000;
+
+      if (drift > seekThreshold && canSeekNow) {
         player.seekTo(expected, true);
+        lastSeekRef.current = now;
       }
 
       if (state !== ytState?.PLAYING && now - lastPlayAttemptRef.current > 1400) {
@@ -170,7 +177,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     }
 
     player.setVolume(localVolume);
-    if (hasInteracted) {
+    if (audioUnlockedRef.current || hasInteracted) {
       player.unMute();
     } else {
       player.mute();
@@ -183,17 +190,40 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
       return;
     }
 
+    audioUnlockedRef.current = true;
     setHasInteracted(true);
     player.setVolume(nextVolume);
     player.unMute();
+    player.playVideo();
+    lastPlayAttemptRef.current = Date.now();
 
-    if (playback?.state === 'playing') {
-      player.playVideo();
-      window.setTimeout(() => {
-        player.setVolume(nextVolume);
-        player.unMute();
-      }, 120);
+    if (audioRetryRef.current) {
+      window.clearInterval(audioRetryRef.current);
     }
+
+    let retries = 0;
+    audioRetryRef.current = window.setInterval(() => {
+      const currentPlayer = playerRef.current;
+      if (!currentPlayer) {
+        return;
+      }
+
+      currentPlayer.setVolume(nextVolume);
+      currentPlayer.unMute();
+
+      if (playback?.state === 'playing') {
+        currentPlayer.playVideo();
+        lastPlayAttemptRef.current = Date.now();
+      }
+
+      retries += 1;
+      if (retries >= 6) {
+        if (audioRetryRef.current) {
+          window.clearInterval(audioRetryRef.current);
+          audioRetryRef.current = null;
+        }
+      }
+    }, 350);
   }
 
   useEffect(() => {
@@ -285,6 +315,9 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     return () => {
       if (followUpSyncRef.current) {
         window.clearTimeout(followUpSyncRef.current);
+      }
+      if (audioRetryRef.current) {
+        window.clearInterval(audioRetryRef.current);
       }
       playerRef.current?.destroy();
       playerRef.current = null;
@@ -446,17 +479,26 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                   unlockLocalAudio(localVolume);
                 }
               }}
+              onPointerUp={() => {
+                if (currentTrack) {
+                  unlockLocalAudio(localVolume);
+                }
+              }}
               onTouchStart={() => {
                 if (currentTrack) {
                   unlockLocalAudio(localVolume);
                 }
               }}
-              onInput={(event) => {
-                const nextVolume = Number((event.target as HTMLInputElement).value);
+              onChange={(event) => {
+                const nextVolume = Number(event.target.value);
                 setLocalVolume(nextVolume);
                 if (currentTrack) {
                   unlockLocalAudio(nextVolume);
                 }
+              }}
+              onInput={(event) => {
+                const nextVolume = Number((event.target as HTMLInputElement).value);
+                setLocalVolume(nextVolume);
               }}
               disabled={!currentTrack}
               className="mt-4 h-4 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
@@ -465,7 +507,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
               <span>Muet</span>
               <span>Fort</span>
             </div>
-            <p className="mt-4 text-sm leading-6 text-emerald-50/85">Touchez le slider une seule fois pour activer l’audio local. Après ça, il sert juste de vrai volume, pas d’un bouton planqué chelou.</p>
+            <p className="mt-4 text-sm leading-6 text-emerald-50/85">Touchez le slider une fois pour déverrouiller le son local, puis il reste actif. Après ça, c’est juste un vrai volume.</p>
           </div>
         </div>
       </div>

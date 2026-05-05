@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.6] - 2026-05-05
+
+### Fixed
+- Déverrouillage audio local renforcé avec plusieurs tentatives courtes après le premier geste utilisateur, pour éviter le son qui retombe dès qu’on arrête de bouger le slider
+- Resync playback encore assoupli pour éviter qu’un seek trop fréquent recoupe la lecture côté audience
+
 ## [1.6.5] - 2026-05-05
 
 ### Fixed
