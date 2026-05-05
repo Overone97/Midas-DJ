@@ -18,6 +18,15 @@ type QueueFeedback = {
   text: string;
 };
 
+type RoomRow = {
+  id: string;
+  name: string;
+  slug: string;
+  type: 'public' | 'private';
+  description: string | null;
+  owner_id: string;
+};
+
 type QueueRow = {
   id: string;
   youtube_video_id: string;
@@ -30,13 +39,18 @@ type QueueRow = {
   profiles?: { username?: string | null } | { username?: string | null }[] | null;
 };
 
+type MembershipRow = {
+  role: 'owner' | 'mod' | 'member';
+};
+
+type MemberRow = {
+  role: 'owner' | 'mod' | 'member';
+  profiles?: { id?: string; username?: string | null } | { id?: string; username?: string | null }[] | null;
+};
+
 function flattenPresence(state: Record<string, PresenceMeta[] | undefined>) {
   return Object.entries(state).flatMap(([key, metas]) =>
-    (metas ?? []).map((meta, index) => ({
-      key,
-      index,
-      meta,
-    })),
+    (metas ?? []).map((meta, index) => ({ key, index, meta })),
   );
 }
 
@@ -52,7 +66,10 @@ function dedupeMembers(members: RoomMemberPreview[]) {
   });
 }
 
-function labelFromProfile(profile: QueueRow['profiles'], fallback: string) {
+function labelFromProfile(
+  profile: { username?: string | null; id?: string } | { username?: string | null; id?: string }[] | null | undefined,
+  fallback: string,
+) {
   const resolved = Array.isArray(profile) ? profile[0] : profile;
   return resolved?.username?.trim() || fallback;
 }
@@ -70,6 +87,23 @@ function mapQueueRows(rows: QueueRow[]): QueueItemPreview[] {
   }));
 }
 
+function mapMemberRows(rows: MemberRow[]) {
+  return rows.reduce<RoomMemberPreview[]>((acc, entry, index) => {
+    const profile = Array.isArray(entry.profiles) ? entry.profiles[0] : entry.profiles;
+    if (!profile?.id) {
+      return acc;
+    }
+
+    acc.push({
+      id: profile.id,
+      label: labelFromProfile(profile, `Member ${index + 1}`),
+      role: entry.role,
+      online: false,
+    });
+    return acc;
+  }, []);
+}
+
 export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) {
   const [state, setState] = useState<RoomPageState>(initialState);
   const [presenceConnected, setPresenceConnected] = useState(false);
@@ -83,7 +117,111 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   }, [initialState]);
 
   useEffect(() => {
-    if (!initialState.envReady || !initialState.room.id) {
+    const supabase = getSupabaseBrowserClient();
+
+    if (!supabase || !initialState.envReady) {
+      return;
+    }
+
+    let cancelled = false;
+
+    async function hydrateRoom() {
+      const [authResult, roomResult] = await Promise.all([
+        supabase.auth.getUser(),
+        supabase.from('rooms').select('id, name, slug, type, description, owner_id').eq('slug', initialState.room.slug).maybeSingle(),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      const user = authResult.data.user;
+      const room = roomResult.data as RoomRow | null;
+
+      if (roomResult.error || !room) {
+        setState((current) => ({
+          ...current,
+          status: 'missing',
+          currentUser: {
+            isLoggedIn: Boolean(user),
+            role: 'visitor',
+            email: user?.email,
+          },
+          room: {
+            ...current.room,
+            name: 'Room introuvable',
+            description: 'Cette URL ne correspond à aucune room connue côté backend.',
+            type: 'public',
+            ownerLabel: '—',
+          },
+          members: [],
+          queue: { items: [] },
+        }));
+        return;
+      }
+
+      const [{ data: ownerProfile }, { data: membership }, { data: membersData }, { data: queueItemsData }] = await Promise.all([
+        supabase.from('profiles').select('username').eq('id', room.owner_id).maybeSingle(),
+        user
+          ? supabase.from('room_members').select('role').eq('room_id', room.id).eq('user_id', user.id).maybeSingle()
+          : Promise.resolve({ data: null }),
+        supabase.from('room_members').select('role, profiles!room_members_user_id_fkey(id, username)').eq('room_id', room.id).limit(12),
+        supabase
+          .from('queue_items')
+          .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(username)')
+          .eq('room_id', room.id)
+          .in('status', ['queued', 'playing'])
+          .order('position', { ascending: true })
+          .limit(20),
+      ]);
+
+      if (cancelled) {
+        return;
+      }
+
+      const role = user ? ((membership as MembershipRow | null)?.role ?? (user.id === room.owner_id ? 'owner' : 'visitor')) : 'visitor';
+      const denied = room.type === 'private' && role === 'visitor';
+      const queueItems = mapQueueRows((queueItemsData as QueueRow[]) ?? []);
+
+      setState({
+        status: denied ? 'forbidden' : 'live',
+        envReady: true,
+        room: {
+          id: room.id,
+          name: room.name,
+          slug: room.slug,
+          type: room.type,
+          description: room.description ?? 'La room est prête côté backend. Le playback sync arrive juste après.',
+          ownerLabel: labelFromProfile(ownerProfile, `Owner ${room.owner_id.slice(0, 8)}`),
+          ownerId: room.owner_id,
+          queueDepth: queueItems.length,
+        },
+        currentUser: {
+          isLoggedIn: Boolean(user),
+          role,
+          email: user?.email,
+        },
+        members: mapMemberRows((membersData as MemberRow[]) ?? []),
+        queue: {
+          items: queueItems,
+        },
+        presence: {
+          enabled: true,
+          connected: false,
+          onlineCount: 0,
+        },
+      });
+    }
+
+    void hydrateRoom();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [initialState.envReady, initialState.room.slug]);
+
+  useEffect(() => {
+    if (!state.envReady || !state.room.id) {
       setPresenceConnected(false);
       return;
     }
@@ -95,10 +233,10 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       return;
     }
 
-    const channel = supabase.channel(`room-presence:${initialState.room.id}`, {
+    const channel = supabase.channel(`room-presence:${state.room.id}`, {
       config: {
         presence: {
-          key: initialState.currentUser.email ?? initialState.currentUser.role,
+          key: state.currentUser.email ?? state.currentUser.role,
         },
       },
     });
@@ -109,18 +247,13 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
       for (const entry of presenceEntries) {
         const userId = entry.meta.user_id;
-        if (!userId) {
-          continue;
+        if (userId) {
+          presenceById.set(userId, entry.meta);
         }
-        presenceById.set(userId, entry.meta);
       }
 
       setState((current) => {
-        const baseMembers = current.members.map((member) => ({
-          ...member,
-          online: presenceById.has(member.id),
-        }));
-
+        const baseMembers = current.members.map((member) => ({ ...member, online: presenceById.has(member.id) }));
         const extraPresentMembers = Array.from(presenceById.entries())
           .filter(([userId]) => !baseMembers.some((member) => member.id === userId))
           .map(([userId, meta], index) => ({
@@ -139,7 +272,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           members: dedupeMembers([...baseMembers, ...extraPresentMembers]),
           presence: {
             enabled: true,
-            connected: presenceConnected,
+            connected: true,
             onlineCount: presenceById.size,
           },
         };
@@ -150,18 +283,16 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       .on('presence', { event: 'sync' }, syncPresence)
       .subscribe(async (status: 'SUBSCRIBED' | 'TIMED_OUT' | 'CLOSED' | 'CHANNEL_ERROR') => {
         setPresenceConnected(status === 'SUBSCRIBED');
-
         if (status !== 'SUBSCRIBED') {
           return;
         }
 
         const { data } = await supabase.auth.getUser();
         const user = data.user;
-
         await channel.track({
           user_id: user?.id,
           label: user?.user_metadata?.username || user?.email?.split('@')[0] || 'Guest listener',
-          role: initialState.currentUser.role,
+          role: state.currentUser.role,
           online_at: new Date().toISOString(),
         });
       });
@@ -170,20 +301,19 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       void channel.untrack();
       void supabase.removeChannel(channel);
     };
-  }, [initialState]);
+  }, [state.envReady, state.room.id, state.currentUser.email, state.currentUser.role]);
 
   useEffect(() => {
-    if (!initialState.envReady || !initialState.room.id) {
+    if (!state.envReady || !state.room.id) {
       return;
     }
 
     const supabase = getSupabaseBrowserClient();
-
     if (!supabase) {
       return;
     }
 
-    const roomId = initialState.room.id;
+    const roomId = state.room.id;
 
     async function refreshQueue() {
       const { data, error } = await supabase
@@ -212,8 +342,6 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       }));
     }
 
-    void refreshQueue();
-
     const channel = supabase
       .channel(`room-queue:${roomId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_items', filter: `room_id=eq.${roomId}` }, () => {
@@ -221,33 +349,33 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       })
       .subscribe();
 
+    void refreshQueue();
+
     return () => {
       void supabase.removeChannel(channel);
     };
-  }, [initialState.envReady, initialState.room.id]);
+  }, [state.envReady, state.room.id]);
 
   async function handleQueueSubmit() {
-    if (!initialState.envReady || !initialState.room.id) {
+    if (!state.envReady || !state.room.id) {
       setQueueFeedback({ tone: 'error', text: 'Mode preview : rien ne sera enregistré.' });
       return;
     }
 
     const supabase = getSupabaseBrowserClient();
-
     if (!supabase) {
       setQueueFeedback({ tone: 'error', text: 'Client Supabase indisponible.' });
       return;
     }
 
-    if (!initialState.currentUser.isLoggedIn) {
+    if (!state.currentUser.isLoggedIn) {
       setQueueFeedback({ tone: 'error', text: 'Connecte-toi avant d’ajouter un titre.' });
       return;
     }
 
     const videoId = extractYouTubeVideoId(queueUrl);
-
     if (!videoId) {
-      setQueueFeedback({ tone: 'error', text: 'Lien YouTube invalide. Colle un vrai watch/youtu.be/shorts, pas une horreur bancale.' });
+      setQueueFeedback({ tone: 'error', text: 'Lien YouTube invalide. Colle un vrai lien, pas une bouillie.' });
       return;
     }
 
@@ -257,15 +385,14 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     try {
       const { data: authData } = await supabase.auth.getUser();
       const user = authData.user;
-
       if (!user) {
         throw new Error('Session expirée. Recharge ou reconnecte-toi.');
       }
 
       const { data: latestItems, error: latestItemsError } = await supabase
         .from('queue_items')
-        .select('position, status')
-        .eq('room_id', initialState.room.id)
+        .select('position')
+        .eq('room_id', state.room.id)
         .order('position', { ascending: false })
         .limit(1);
 
@@ -278,9 +405,9 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       const computedTitle = queueTitle.trim() || `YouTube track · ${videoId}`;
 
       const { error } = await supabase.from('queue_items').insert({
-        room_id: initialState.room.id,
+        room_id: state.room.id,
         added_by: user.id,
-        dj_user_id: initialState.room.ownerId ?? null,
+        dj_user_id: state.room.ownerId ?? null,
         youtube_video_id: videoId,
         title: computedTitle,
         thumbnail_url: getYouTubeThumbnailUrl(videoId),
@@ -295,7 +422,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
       setQueueUrl('');
       setQueueTitle('');
-      setQueueFeedback({ tone: 'success', text: 'Titre ajouté. La room commence enfin à ressembler à quelque chose.' });
+      setQueueFeedback({ tone: 'success', text: 'Titre ajouté. Là, ça devient enfin une vraie room.' });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Impossible d’ajouter ce titre.';
       setQueueFeedback({ tone: 'error', text: message });
@@ -312,7 +439,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
             ...state.presence,
             connected: presenceConnected,
           }
-        : initialState.envReady && initialState.room.id
+        : state.envReady && state.room.id
           ? {
               enabled: true,
               connected: presenceConnected,
@@ -320,7 +447,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
             }
           : undefined,
     }),
-    [initialState.envReady, initialState.room.id, presenceConnected, state],
+    [presenceConnected, state],
   );
 
   const canComposeQueue = hydratedState.status === 'live' && hydratedState.currentUser.isLoggedIn;

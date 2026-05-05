@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.1] - 2026-05-05
+
+### Fixed
+- Route `/rooms/[slug]` rendue à nouveau compatible avec l’export statique GitHub Pages
+- Hydratation live de la room déplacée côté client pour éviter le crash `cookies()` pendant le build Pages
+
 ## [1.4.0] - 2026-05-05
 
 ### Added
