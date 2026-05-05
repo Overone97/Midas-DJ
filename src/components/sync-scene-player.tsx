@@ -232,6 +232,23 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     return 'set terminé';
   }, [playback]);
 
+  function unlockLocalAudio() {
+    if (!playerRef.current || !currentTrack) {
+      return;
+    }
+
+    const expected = getExpectedOffset(playback);
+
+    setHasInteracted(true);
+    playerRef.current.seekTo(expected, true);
+
+    if (playback?.state === 'playing') {
+      playerRef.current.playVideo();
+    }
+
+    playerRef.current.unMute();
+  }
+
   const progressWidth = Math.min(100, ((liveOffset % 240) / 240) * 100);
 
   return (
@@ -348,7 +365,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           <button
             type="button"
             onClick={() => {
-              setHasInteracted(true);
+              unlockLocalAudio();
               onTogglePlayback(playback?.state === 'playing' ? 'paused' : 'playing', liveOffset);
             }}
             disabled={!currentTrack || !canControl}
@@ -359,7 +376,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           <button
             type="button"
             onClick={() => {
-              setHasInteracted(true);
+              unlockLocalAudio();
               onNextTrack();
             }}
             disabled={!currentTrack || !canControl}
@@ -370,8 +387,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           <button
             type="button"
             onClick={() => {
-              setHasInteracted(true);
-              playerRef.current?.unMute();
+              unlockLocalAudio();
             }}
             disabled={!currentTrack}
             className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-5 py-3 font-semibold text-emerald-50 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
