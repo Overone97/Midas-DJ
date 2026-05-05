@@ -123,6 +123,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const lastKnownTimeRef = useRef(0);
   const lastProgressAtRef = useRef(0);
   const playerStateRef = useRef<number | null>(null);
+  const autoAdvanceTrackRef = useRef<string | null>(null);
   const audioUnlockedRef = useRef(false);
   const [playerReady, setPlayerReady] = useState(false);
   const [liveOffset, setLiveOffset] = useState(0);
@@ -150,6 +151,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     if (trackIdRef.current !== currentTrack.id) {
       player.loadVideoById(currentTrack.youtubeVideoId, expected);
       trackIdRef.current = currentTrack.id;
+      autoAdvanceTrackRef.current = null;
       lastTrackLoadRef.current = now;
       lastPlayAttemptRef.current = now;
       lastSeekRef.current = now;
@@ -280,6 +282,12 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
             if (event.data === window.YT?.PlayerState?.PLAYING) {
               lastProgressAtRef.current = Date.now();
             }
+            if (event.data === window.YT?.PlayerState?.ENDED && canControl && currentTrack) {
+              if (autoAdvanceTrackRef.current !== currentTrack.id) {
+                autoAdvanceTrackRef.current = currentTrack.id;
+                onNextTrack();
+              }
+            }
           },
         },
       });
@@ -291,6 +299,10 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
       cancelled = true;
     };
   }, [currentTrack, localVolume]);
+
+  useEffect(() => {
+    autoAdvanceTrackRef.current = null;
+  }, [currentTrack?.id]);
 
   useEffect(() => {
     if (!playerReady || !currentTrack) {
