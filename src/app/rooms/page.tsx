@@ -1,3 +1,4 @@
+import { Suspense } from 'react';
 import { AppShell } from '@/components/app-shell';
 import { RoomsShowcase } from '@/components/rooms-showcase';
 import { hasSupabaseEnv } from '@/lib/supabase/env';
@@ -14,7 +15,15 @@ export default function RoomsPage() {
         </div>
       }
     >
-      <RoomsShowcase envReady={hasSupabaseEnv()} />
+      <Suspense
+        fallback={
+          <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 text-white/72">
+            Chargement du lobby…
+          </div>
+        }
+      >
+        <RoomsShowcase envReady={hasSupabaseEnv()} />
+      </Suspense>
     </AppShell>
   );
 }
