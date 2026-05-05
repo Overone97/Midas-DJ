@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.8] - 2026-05-05
+
+### Changed
+- Refonte du layout room pour arrêter l’effet “blog” : scène pleine largeur, deck principal mis en avant, panneaux secondaires rangés comme une vraie app de room musicale
+- Hiérarchie visuelle revue pour coller davantage à une expérience plug.dj avec la scène comme élément dominant
+
 ## [1.6.7] - 2026-05-05
 
 ### Changed
