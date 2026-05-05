@@ -1,10 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
+import { LiveRoomPage } from '@/components/live-room-page';
 import { APP_RELEASE_LABEL } from '@/lib/app-version';
-import { featuredRooms, slugifyRoom, type FeaturedRoom, type LiveRoom, type RoomType } from '@/lib/rooms';
+import { featuredRooms, getPreviewRoomState, slugifyRoom, type FeaturedRoom, type LiveRoom, type RoomType } from '@/lib/rooms';
 import type { User } from '@supabase/supabase-js';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 
@@ -19,8 +20,14 @@ const feedbackStyles: Record<Feedback['tone'], string> = {
   error: 'border-rose-500/30 bg-rose-500/10 text-rose-50',
 };
 
+function buildRoomHref(slug: string) {
+  return `/rooms?slug=${encodeURIComponent(slug)}`;
+}
+
 export function RoomsShowcase({ envReady }: { envReady: boolean }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const roomSlugParam = slugifyRoom(searchParams.get('slug') ?? '');
   const [sessionUser, setSessionUser] = useState<User | null>(null);
   const [liveRooms, setLiveRooms] = useState<LiveRoom[]>([]);
   const [loading, setLoading] = useState(envReady);
@@ -187,7 +194,7 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
       setRoomDescription('');
       setRoomType('public');
       await refreshRooms();
-      router.push(`/rooms/${room.slug}`);
+      router.push(buildRoomHref(room.slug));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'La room a refusé de naître.';
       setFeedback({ tone: 'error', text: message });
@@ -246,13 +253,17 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
       }
 
       setPrivateSlug('');
-      router.push(`/rooms/${room.slug}`);
+      router.push(buildRoomHref(room.slug));
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Impossible de rejoindre cette room.';
       setFeedback({ tone: 'error', text: message });
     } finally {
       setJoining(false);
     }
+  }
+
+  if (roomSlugParam) {
+    return <LiveRoomPage initialState={getPreviewRoomState(roomSlugParam)} />;
   }
 
   return (
@@ -262,7 +273,7 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
           <p className="text-sm uppercase tracking-[0.25em] text-gold/75">Lobby live</p>
           <h2 className="mt-3 text-3xl font-bold">Des rooms visibles, un vrai signup/login, et une navigation room enfin réelle.</h2>
           <p className="mt-3 max-w-2xl text-white/72">
-            {`La ${APP_RELEASE_LABEL} ajoute une vraie page room : après create ou join privé, tu atterris enfin sur /rooms/[slug] avec un état d’accès crédible.`}
+            {`La ${APP_RELEASE_LABEL} garde une vraie room jouable, mais passe maintenant par /rooms?slug=... pour éviter le 404 GitHub Pages sur les slugs dynamiques.`}
           </p>
         </div>
 
@@ -349,15 +360,9 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
             ) : null}
 
             <div className="mt-6 flex gap-3">
-              {'id' in room ? (
-                <Link href={`/rooms/${room.slug}`} className="rounded-full bg-gold px-4 py-2 font-semibold text-night">
-                  Ouvrir la room
-                </Link>
-              ) : (
-                <Link href={`/rooms/${room.slug}`} className="rounded-full bg-gold px-4 py-2 font-semibold text-night">
-                  Voir la preview
-                </Link>
-              )}
+              <Link href={buildRoomHref(room.slug)} className="rounded-full bg-gold px-4 py-2 font-semibold text-night">
+                {'id' in room ? 'Ouvrir la room' : 'Voir la preview'}
+              </Link>
               <button
                 type="button"
                 onClick={() => {
@@ -381,7 +386,7 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
           <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Créer une room</p>
           <h3 className="mt-3 text-2xl font-bold">Lancer un nouveau dancefloor pour de vrai</h3>
           <p className="mt-3 text-white/72">
-            Quand Supabase est branché et que tu es connecté, cette carte crée une vraie ligne dans la table `rooms`, t’ajoute comme owner puis te redirige vers la page room.
+            Quand Supabase est branché et que tu es connecté, cette carte crée une vraie ligne dans la table `rooms`, t’ajoute comme owner puis t’ouvre la room sans passer par une route cassée par GitHub Pages.
           </p>
 
           <div className="mt-5 space-y-3">
@@ -446,7 +451,7 @@ export function RoomsShowcase({ envReady }: { envReady: boolean }) {
           <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Rejoindre en privé</p>
           <h3 className="mt-3 text-2xl font-bold">Entrer avec un slug de room</h3>
           <p className="mt-3 text-white/72">
-            Le flow cherche la room, t’inscrit dans `room_members`, puis t’ouvre directement la page slug associée.
+            Le flow cherche la room, t’inscrit dans `room_members`, puis t’ouvre la room via un slug en query string pour contourner la limite de GitHub Pages.
           </p>
           <div className="mt-5 flex gap-3">
             <input

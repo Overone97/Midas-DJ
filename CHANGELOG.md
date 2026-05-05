@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.4.2] - 2026-05-05
+
+### Fixed
+- Les rooms créées ou rejointes utilisent désormais `/rooms?slug=...` au lieu d’un slug dynamique incompatible avec GitHub Pages
+- Le bouton d’ouverture de room et le flow de join n’envoient plus vers un 404 pour les slugs personnalisés
+
 ## [1.4.1] - 2026-05-05
 
 ### Fixed
