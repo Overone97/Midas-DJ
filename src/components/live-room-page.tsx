@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { RoomPageView } from '@/components/room-page';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import type { QueueItemPreview, RoomMemberPreview, RoomPageState, RoomRole } from '@/lib/rooms';
+import type { PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomPageState, RoomRole } from '@/lib/rooms';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl } from '@/lib/youtube';
 
 type PresenceMeta = {
@@ -48,10 +48,17 @@ type MemberRow = {
   profiles?: { id?: string; username?: string | null } | { id?: string; username?: string | null }[] | null;
 };
 
+type PlaybackRow = {
+  current_queue_item_id: string | null;
+  dj_user_id: string | null;
+  state: 'playing' | 'paused' | 'ended';
+  started_at: string | null;
+  offset_seconds: number;
+  updated_at: string;
+};
+
 function flattenPresence(state: Record<string, PresenceMeta[] | undefined>) {
-  return Object.entries(state).flatMap(([key, metas]) =>
-    (metas ?? []).map((meta, index) => ({ key, index, meta })),
-  );
+  return Object.entries(state).flatMap(([key, metas]) => (metas ?? []).map((meta, index) => ({ key, index, meta })));
 }
 
 function dedupeMembers(members: RoomMemberPreview[]) {
@@ -60,7 +67,6 @@ function dedupeMembers(members: RoomMemberPreview[]) {
     if (seen.has(member.id)) {
       return false;
     }
-
     seen.add(member.id);
     return true;
   });
@@ -104,6 +110,33 @@ function mapMemberRows(rows: MemberRow[]) {
   }, []);
 }
 
+function mapPlaybackRow(row: PlaybackRow | null | undefined): PlaybackPreview | undefined {
+  if (!row) {
+    return undefined;
+  }
+
+  return {
+    currentQueueItemId: row.current_queue_item_id,
+    djUserId: row.dj_user_id,
+    state: row.state,
+    startedAt: row.started_at,
+    offsetSeconds: Number(row.offset_seconds ?? 0),
+    updatedAt: row.updated_at,
+  };
+}
+
+function getCurrentOffset(playback?: PlaybackPreview) {
+  if (!playback) {
+    return 0;
+  }
+
+  if (playback.state !== 'playing' || !playback.startedAt) {
+    return playback.offsetSeconds;
+  }
+
+  return playback.offsetSeconds + Math.max(0, (Date.now() - new Date(playback.startedAt).getTime()) / 1000);
+}
+
 export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) {
   const [state, setState] = useState<RoomPageState>(initialState);
   const [presenceConnected, setPresenceConnected] = useState(false);
@@ -118,7 +151,6 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
   useEffect(() => {
     const supabase = getSupabaseBrowserClient();
-
     if (!supabase) {
       return;
     }
@@ -142,11 +174,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         setState((current) => ({
           ...current,
           status: 'missing',
-          currentUser: {
-            isLoggedIn: Boolean(user),
-            role: 'visitor',
-            email: user?.email,
-          },
+          currentUser: { isLoggedIn: Boolean(user), role: 'visitor', email: user?.email },
           room: {
             ...current.room,
             name: 'Room introuvable',
@@ -156,15 +184,14 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           },
           members: [],
           queue: { items: [] },
+          playback: undefined,
         }));
         return;
       }
 
-      const [{ data: ownerProfile }, { data: membership }, { data: membersData }, { data: queueItemsData }] = await Promise.all([
+      const [{ data: ownerProfile }, { data: membership }, { data: membersData }, { data: queueItemsData }, { data: playbackData }] = await Promise.all([
         supabase.from('profiles').select('username').eq('id', room.owner_id).maybeSingle(),
-        user
-          ? supabase.from('room_members').select('role').eq('room_id', room.id).eq('user_id', user.id).maybeSingle()
-          : Promise.resolve({ data: null }),
+        user ? supabase.from('room_members').select('role').eq('room_id', room.id).eq('user_id', user.id).maybeSingle() : Promise.resolve({ data: null }),
         supabase.from('room_members').select('role, profiles!room_members_user_id_fkey(id, username)').eq('room_id', room.id).limit(12),
         supabase
           .from('queue_items')
@@ -173,6 +200,11 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           .in('status', ['queued', 'playing'])
           .order('position', { ascending: true })
           .limit(20),
+        supabase
+          .from('playback_state')
+          .select('current_queue_item_id, dj_user_id, state, started_at, offset_seconds, updated_at')
+          .eq('room_id', room.id)
+          .maybeSingle(),
       ]);
 
       if (cancelled) {
@@ -191,25 +223,16 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           name: room.name,
           slug: room.slug,
           type: room.type,
-          description: room.description ?? 'La room est prête côté backend. Le playback sync arrive juste après.',
+          description: room.description ?? 'La room est prête côté backend. La scène sync tient maintenant debout.',
           ownerLabel: labelFromProfile(ownerProfile, `Owner ${room.owner_id.slice(0, 8)}`),
           ownerId: room.owner_id,
           queueDepth: queueItems.length,
         },
-        currentUser: {
-          isLoggedIn: Boolean(user),
-          role,
-          email: user?.email,
-        },
+        currentUser: { isLoggedIn: Boolean(user), role, email: user?.email },
         members: mapMemberRows((membersData as MemberRow[]) ?? []),
-        queue: {
-          items: queueItems,
-        },
-        presence: {
-          enabled: true,
-          connected: false,
-          onlineCount: 0,
-        },
+        queue: { items: queueItems },
+        playback: mapPlaybackRow(playbackData as PlaybackRow | null),
+        presence: { enabled: true, connected: false, onlineCount: 0 },
       });
     }
 
@@ -227,18 +250,13 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     }
 
     const supabase = getSupabaseBrowserClient();
-
     if (!supabase) {
       setPresenceConnected(false);
       return;
     }
 
     const channel = supabase.channel(`room-presence:${state.room.id}`, {
-      config: {
-        presence: {
-          key: state.currentUser.email ?? state.currentUser.role,
-        },
-      },
+      config: { presence: { key: state.currentUser.email ?? state.currentUser.role } },
     });
 
     const syncPresence = () => {
@@ -246,9 +264,8 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       const presenceById = new Map<string, PresenceMeta>();
 
       for (const entry of presenceEntries) {
-        const userId = entry.meta.user_id;
-        if (userId) {
-          presenceById.set(userId, entry.meta);
+        if (entry.meta.user_id) {
+          presenceById.set(entry.meta.user_id, entry.meta);
         }
       }
 
@@ -265,16 +282,9 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
         return {
           ...current,
-          room: {
-            ...current.room,
-            listenerCount: presenceById.size || current.room.listenerCount,
-          },
+          room: { ...current.room, listenerCount: presenceById.size || current.room.listenerCount },
           members: dedupeMembers([...baseMembers, ...extraPresentMembers]),
-          presence: {
-            enabled: true,
-            connected: true,
-            onlineCount: presenceById.size,
-          },
+          presence: { enabled: true, connected: true, onlineCount: presenceById.size },
         };
       });
     };
@@ -332,29 +342,73 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       const items = mapQueueRows((data as QueueRow[]) ?? []);
       setState((current) => ({
         ...current,
-        room: {
-          ...current.room,
-          queueDepth: items.length,
-        },
-        queue: {
-          items,
-        },
+        room: { ...current.room, queueDepth: items.length },
+        queue: { items },
       }));
     }
 
-    const channel = supabase
+    async function refreshPlayback() {
+      const { data, error } = await supabase
+        .from('playback_state')
+        .select('current_queue_item_id, dj_user_id, state, started_at, offset_seconds, updated_at')
+        .eq('room_id', roomId)
+        .maybeSingle();
+
+      if (error) {
+        return;
+      }
+
+      setState((current) => ({ ...current, playback: mapPlaybackRow(data as PlaybackRow | null) }));
+    }
+
+    const queueChannel = supabase
       .channel(`room-queue:${roomId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_items', filter: `room_id=eq.${roomId}` }, () => {
         void refreshQueue();
       })
       .subscribe();
 
+    const playbackChannel = supabase
+      .channel(`room-playback:${roomId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'playback_state', filter: `room_id=eq.${roomId}` }, () => {
+        void refreshPlayback();
+      })
+      .subscribe();
+
     void refreshQueue();
+    void refreshPlayback();
 
     return () => {
-      void supabase.removeChannel(channel);
+      void supabase.removeChannel(queueChannel);
+      void supabase.removeChannel(playbackChannel);
     };
   }, [state.envReady, state.room.id]);
+
+  async function ensurePlaybackStateForFirstTrack(newQueueItemId: string) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase || !state.room.id || !state.room.ownerId) {
+      return;
+    }
+
+    const { data: existing } = await supabase
+      .from('playback_state')
+      .select('room_id')
+      .eq('room_id', state.room.id)
+      .maybeSingle();
+
+    if (existing) {
+      return;
+    }
+
+    await supabase.from('playback_state').insert({
+      room_id: state.room.id,
+      current_queue_item_id: newQueueItemId,
+      dj_user_id: state.room.ownerId,
+      state: 'playing',
+      started_at: new Date().toISOString(),
+      offset_seconds: 0,
+    });
+  }
 
   async function handleQueueSubmit() {
     if (!state.envReady || !state.room.id) {
@@ -401,28 +455,36 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       }
 
       const nextPosition = ((latestItems?.[0]?.position as number | undefined) ?? 0) + 1;
-      const hasPlayingTrack = state.queue?.items?.some((item) => item.status === 'playing') ?? false;
       const computedTitle = queueTitle.trim() || `YouTube track · ${videoId}`;
 
-      const { error } = await supabase.from('queue_items').insert({
-        room_id: state.room.id,
-        added_by: user.id,
-        dj_user_id: state.room.ownerId ?? null,
-        youtube_video_id: videoId,
-        title: computedTitle,
-        thumbnail_url: getYouTubeThumbnailUrl(videoId),
-        duration_seconds: 0,
-        position: nextPosition,
-        status: hasPlayingTrack ? 'queued' : 'playing',
-      });
+      const { data: inserted, error } = await supabase
+        .from('queue_items')
+        .insert({
+          room_id: state.room.id,
+          added_by: user.id,
+          dj_user_id: state.room.ownerId ?? user.id,
+          youtube_video_id: videoId,
+          title: computedTitle,
+          thumbnail_url: getYouTubeThumbnailUrl(videoId),
+          duration_seconds: 0,
+          position: nextPosition,
+          status: 'queued',
+        })
+        .select('id')
+        .single();
 
       if (error) {
         throw error;
       }
 
+      if (!state.playback && inserted?.id) {
+        await supabase.from('queue_items').update({ status: 'playing' }).eq('id', inserted.id);
+        await ensurePlaybackStateForFirstTrack(inserted.id);
+      }
+
       setQueueUrl('');
       setQueueTitle('');
-      setQueueFeedback({ tone: 'success', text: 'Titre ajouté. Là, ça devient enfin une vraie room.' });
+      setQueueFeedback({ tone: 'success', text: 'Titre ajouté. La scène a maintenant quelque chose à jouer.' });
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Impossible d’ajouter ce titre.';
       setQueueFeedback({ tone: 'error', text: message });
@@ -431,14 +493,70 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     }
   }
 
+  async function handleTogglePlayback(nextState: 'playing' | 'paused', currentOffset: number) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase || !state.room.id || !state.playback) {
+      return;
+    }
+
+    const payload =
+      nextState === 'playing'
+        ? {
+            state: 'playing',
+            started_at: new Date().toISOString(),
+            offset_seconds: currentOffset,
+          }
+        : {
+            state: 'paused',
+            started_at: null,
+            offset_seconds: currentOffset,
+          };
+
+    await supabase.from('playback_state').update(payload).eq('room_id', state.room.id).eq('dj_user_id', state.playback.djUserId ?? '');
+  }
+
+  async function handleNextTrack() {
+    const supabase = getSupabaseBrowserClient();
+    const roomId = state.room.id;
+    const currentPlayback = state.playback;
+    const queueItems = state.queue?.items ?? [];
+    if (!supabase || !roomId || !currentPlayback) {
+      return;
+    }
+
+    const currentTrack = queueItems.find((item) => item.id === currentPlayback.currentQueueItemId) ?? queueItems[0];
+    const nextTrack = queueItems.find((item) => item.position > (currentTrack?.position ?? 0));
+
+    if (!nextTrack) {
+      await supabase
+        .from('playback_state')
+        .update({ state: 'ended', started_at: null, offset_seconds: 0 })
+        .eq('room_id', roomId)
+        .eq('dj_user_id', currentPlayback.djUserId ?? '');
+      return;
+    }
+
+    if (currentTrack) {
+      await supabase.from('queue_items').update({ status: 'played' }).eq('id', currentTrack.id);
+    }
+    await supabase.from('queue_items').update({ status: 'playing' }).eq('id', nextTrack.id);
+    await supabase
+      .from('playback_state')
+      .update({
+        current_queue_item_id: nextTrack.id,
+        state: 'playing',
+        started_at: new Date().toISOString(),
+        offset_seconds: 0,
+      })
+      .eq('room_id', roomId)
+      .eq('dj_user_id', currentPlayback.djUserId ?? '');
+  }
+
   const hydratedState = useMemo<RoomPageState>(
     () => ({
       ...state,
       presence: state.presence
-        ? {
-            ...state.presence,
-            connected: presenceConnected,
-          }
+        ? { ...state.presence, connected: presenceConnected }
         : state.envReady && state.room.id
           ? {
               enabled: true,
@@ -451,10 +569,16 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   );
 
   const canComposeQueue = hydratedState.status === 'live' && hydratedState.currentUser.isLoggedIn;
+  const canControlPlayback = hydratedState.status === 'live' && hydratedState.currentUser.role === 'owner';
 
   return (
     <RoomPageView
       state={hydratedState}
+      playerControls={{
+        canControl: canControlPlayback,
+        onTogglePlayback: (nextState, currentOffset) => void handleTogglePlayback(nextState, currentOffset),
+        onNextTrack: () => void handleNextTrack(),
+      }}
       queueComposer={
         canComposeQueue
           ? {

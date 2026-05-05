@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { getYouTubeEmbedUrl } from '@/lib/youtube';
+import { SyncScenePlayer } from '@/components/sync-scene-player';
 import type { RoomPageState, RoomRole } from '@/lib/rooms';
 
 type QueueComposerProps = {
@@ -15,6 +15,12 @@ type QueueComposerProps = {
   onUrlChange: (value: string) => void;
   onTitleChange: (value: string) => void;
   onSubmit: () => void;
+};
+
+type PlayerControlsProps = {
+  canControl: boolean;
+  onTogglePlayback: (nextState: 'playing' | 'paused', currentOffset: number) => void;
+  onNextTrack: () => void;
 };
 
 const roleLabels: Record<RoomRole, string> = {
@@ -47,14 +53,22 @@ function formatDuration(durationSeconds?: number) {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
-export function RoomPageView({ state, queueComposer }: { state: RoomPageState; queueComposer?: QueueComposerProps }) {
+export function RoomPageView({
+  state,
+  queueComposer,
+  playerControls,
+}: {
+  state: RoomPageState;
+  queueComposer?: QueueComposerProps;
+  playerControls?: PlayerControlsProps;
+}) {
   const isPrivate = state.room.type === 'private';
   const denied = state.status === 'forbidden';
   const missing = state.status === 'missing';
   const preview = state.status === 'preview';
   const onlineMembers = state.members.filter((member) => member.online).length;
   const queueItems = state.queue?.items ?? [];
-  const currentTrack = queueItems.find((item) => item.status === 'playing') ?? queueItems[0];
+  const currentTrack = queueItems.find((item) => item.id === state.playback?.currentQueueItemId) ?? queueItems.find((item) => item.status === 'playing') ?? queueItems[0];
 
   return (
     <section className="space-y-8">
@@ -84,6 +98,9 @@ export function RoomPageView({ state, queueComposer }: { state: RoomPageState; q
             ) : null}
             {typeof state.room.queueDepth === 'number' ? (
               <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2">queue · {state.room.queueDepth} titres</span>
+            ) : null}
+            {state.playback ? (
+              <span className="rounded-full border border-gold/20 bg-gold/10 px-4 py-2 text-gold">sync · {state.playback.state}</span>
             ) : null}
           </div>
         </div>
@@ -165,8 +182,8 @@ export function RoomPageView({ state, queueComposer }: { state: RoomPageState; q
           <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6">
             <div className="flex items-center justify-between gap-4">
               <div>
-                <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Player</p>
-                <h3 className="mt-3 text-2xl font-bold">Deck principal</h3>
+                <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Stage</p>
+                <h3 className="mt-3 text-2xl font-bold">Scène synchronisée</h3>
               </div>
               <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs uppercase tracking-[0.2em] text-white/65">
                 {currentTrack ? currentTrack.status : 'placeholder'}
@@ -174,30 +191,16 @@ export function RoomPageView({ state, queueComposer }: { state: RoomPageState; q
             </div>
 
             {currentTrack ? (
-              <div className="mt-5 grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
-                <div className="overflow-hidden rounded-[1.5rem] border border-gold/20 bg-black/40">
-                  <div className="aspect-video w-full">
-                    <iframe
-                      className="h-full w-full"
-                      src={getYouTubeEmbedUrl(currentTrack.youtubeVideoId)}
-                      title={currentTrack.title}
-                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                      allowFullScreen
-                    />
-                  </div>
-                </div>
-                <div className="rounded-[1.5rem] border border-white/10 bg-black/30 p-5 text-white/78">
-                  <p className="text-xs uppercase tracking-[0.2em] text-gold/75">Lecture courante</p>
-                  <h4 className="mt-3 text-xl font-bold text-white">{currentTrack.title}</h4>
-                  <div className="mt-4 space-y-2 text-sm text-white/65">
-                    <p>Ajouté par · {currentTrack.addedByLabel}</p>
-                    <p>Position · #{currentTrack.position}</p>
-                    <p>Durée · {formatDuration(currentTrack.durationSeconds)}</p>
-                  </div>
-                  <p className="mt-4 text-sm text-white/60">
-                    On a enfin une vraie source YouTube dans la room. La synchro realtime du player vient juste après.
-                  </p>
-                </div>
+              <div className="mt-5">
+                <SyncScenePlayer
+                  track={currentTrack}
+                  playback={state.playback}
+                  canControl={playerControls?.canControl ?? false}
+                  members={state.members}
+                  ownerLabel={state.room.ownerLabel}
+                  onTogglePlayback={playerControls?.onTogglePlayback ?? (() => undefined)}
+                  onNextTrack={playerControls?.onNextTrack ?? (() => undefined)}
+                />
               </div>
             ) : (
               <div className="mt-5 rounded-[1.5rem] border border-dashed border-gold/20 bg-black/30 p-5 text-white/68">

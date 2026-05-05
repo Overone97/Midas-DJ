@@ -46,6 +46,7 @@
 - Realtime room events
 - Resync client automatique
 - Gestion du drift
+- Première scène sync façon plug.dj
 
 ## v1.6.0 — Social + moderation
 - Chat live

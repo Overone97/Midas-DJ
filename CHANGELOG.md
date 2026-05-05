@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.5.0] - 2026-05-05
+
+### Added
+- Scène room synchronisée inspirée de plug.dj avec vrai player YouTube piloté côté client
+- État partagé `playback_state` branché au rendu room pour play/pause/skip synchronisés
+- Contrôles DJ de base et policies RLS pour insérer / mettre à jour le playback state
+
+### Changed
+- La room ne montre plus juste une vidéo embed : elle suit désormais une horloge partagée entre les membres présents
+- La queue alimente maintenant directement la scène sync et le morceau suivant
+
 ## [1.4.3] - 2026-05-05
 
 ### Fixed
