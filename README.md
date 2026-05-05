@@ -1,6 +1,6 @@
 # Midas DJ
 
-**Version:** 1.2.4
+**Version:** 1.3.1
 
 Midas DJ est une plateforme d’écoute sociale en temps réel, inspirée de plug.dj et repensée pour le web moderne.
 
@@ -14,15 +14,14 @@ Créer une expérience où l’on peut :
 - prendre la main comme DJ à tour de rôle ;
 - voter, skipper et modérer sans transformer la room en zoo.
 
-## Scope de la release 1.2.4
+## Scope de la release 1.3.1
 
-Cette release rend enfin le projet vraiment utile :
-- **signup/login Supabase** branchés côté client ;
-- **création de room publique/privée** depuis `/rooms` ;
-- **join privé par slug** avec insertion dans `room_members` ;
-- **bootstrap de profil** pour relier l’utilisateur auth au produit ;
-- **policies RLS de base** + trigger SQL côté Supabase ;
-- **fallback statique GitHub Pages** conservé quand l’environnement n’est pas fourni.
+Cette release branche enfin une vraie couche de présence minimale dans la room :
+- **présence Supabase Realtime** sur `/rooms/[slug]` ;
+- **roster live** avec pastilles online/offline ;
+- **compteur de présence** visible dans l’en-tête de room ;
+- **fallback statique conservé** quand Supabase n’est pas dispo ;
+- **base propre** pour enchaîner sur chat, queue et playback sync.
 
 ## Stack retenue
 
@@ -77,8 +76,8 @@ Midas DJ doit respirer :
 
 ## Prochaines étapes recommandées
 
-1. Construire la vraie page room avec navigation réelle après create/join.
-2. Ajouter présence live, chat et queue dans la room.
-3. Intégrer YouTube IFrame Player API.
-4. Poser la synchro temps réel de playback.
-5. Renforcer les règles d’accès des rooms privées.
+1. Brancher la queue réelle dans la room.
+2. Intégrer YouTube IFrame Player API.
+3. Poser la synchro temps réel de playback.
+4. Ajouter le chat live.
+5. Préparer les actions owner/mod directement depuis la page room.

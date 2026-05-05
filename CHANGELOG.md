@@ -1,5 +1,27 @@
 # Changelog
 
+## [1.3.1] - 2026-05-05
+
+### Added
+- Composant client `LiveRoomPage` pour hydrater une room avec la présence Supabase Realtime
+- Compteur de présence live et indicateurs online/offline dans le roster room
+
+### Changed
+- La route `/rooms/[slug]` rend maintenant la vue room via un wrapper client capable de suivre les présences live
+- Le type de state room accepte désormais les infos de présence et les visiteurs temporaires
+
+## [1.3.0] - 2026-05-04
+
+### Added
+- Nouvelle route `src/app/rooms/[slug]/page.tsx` avec vraie page room crédible
+- Vue room partagée avec état live / preview / room absente / accès refusé
+- Helpers room centralisés pour mock preview, slugify et états fallback
+
+### Changed
+- Création de room depuis `/rooms` redirige maintenant vers `/rooms/[slug]`
+- Join privé par slug redirige maintenant vers `/rooms/[slug]`
+- README et roadmap alignés sur la navigation room réelle
+
 ## [1.2.4] - 2026-05-04
 
 ### Fixed
