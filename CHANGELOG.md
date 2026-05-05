@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.5] - 2026-05-05
+
+### Fixed
+- Suppression du resync trop agressif qui relançait/coupait la vidéo en boucle chez certains clients
+- Volume local rendu beaucoup plus visible, avec un vrai slider central inspiré d’une scène plug.dj
+
+### Changed
+- Le player part toujours auto en muet, puis le slider volume sert de geste clair pour activer l’audio local sans refresh multiple
+
 ## [1.6.4] - 2026-05-05
 
 ### Fixed

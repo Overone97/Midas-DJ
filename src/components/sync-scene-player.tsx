@@ -34,7 +34,6 @@ type YouTubePlayer = {
   destroy: () => void;
   getCurrentTime: () => number;
   getPlayerState: () => number;
-  getVolume: () => number;
   loadVideoById: (videoId: string, startSeconds?: number) => void;
   mute: () => void;
   pauseVideo: () => void;
@@ -116,7 +115,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const playerRef = useRef<YouTubePlayer | null>(null);
   const readyRef = useRef(false);
   const trackIdRef = useRef<string | undefined>(track?.id);
-  const syncTimeoutRef = useRef<number | null>(null);
+  const followUpSyncRef = useRef<number | null>(null);
+  const lastPlayAttemptRef = useRef(0);
   const [playerReady, setPlayerReady] = useState(false);
   const [liveOffset, setLiveOffset] = useState(0);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -126,6 +126,75 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const syncedMembers = members.filter((member) => member.online);
   const syncedCount = syncedMembers.length;
   const crowdMembers = members.slice(0, 8);
+
+  function syncPlayer(mode: 'soft' | 'hard' = 'soft') {
+    const player = playerRef.current;
+    if (!player || !currentTrack) {
+      return;
+    }
+
+    const expected = getExpectedOffset(playback);
+    const current = player.getCurrentTime?.() ?? 0;
+    const drift = Math.abs(current - expected);
+    const ytState = window.YT?.PlayerState;
+    const state = player.getPlayerState?.();
+    const now = Date.now();
+
+    if (trackIdRef.current !== currentTrack.id) {
+      player.loadVideoById(currentTrack.youtubeVideoId, expected);
+      trackIdRef.current = currentTrack.id;
+      lastPlayAttemptRef.current = now;
+      return;
+    }
+
+    if (playback?.state === 'playing') {
+      if (drift > (mode === 'hard' ? 0.75 : 1.35)) {
+        player.seekTo(expected, true);
+      }
+
+      if (state !== ytState?.PLAYING && now - lastPlayAttemptRef.current > 1400) {
+        player.playVideo();
+        lastPlayAttemptRef.current = now;
+      }
+    } else if (playback?.state === 'paused') {
+      if (drift > 0.4) {
+        player.seekTo(expected, true);
+      }
+      if (state === ytState?.PLAYING || state === ytState?.BUFFERING) {
+        player.pauseVideo();
+      }
+    } else if (playback?.state === 'ended') {
+      if (state === ytState?.PLAYING || state === ytState?.BUFFERING) {
+        player.pauseVideo();
+      }
+    }
+
+    player.setVolume(localVolume);
+    if (hasInteracted) {
+      player.unMute();
+    } else {
+      player.mute();
+    }
+  }
+
+  function unlockLocalAudio(nextVolume = localVolume) {
+    const player = playerRef.current;
+    if (!player || !currentTrack) {
+      return;
+    }
+
+    setHasInteracted(true);
+    player.setVolume(nextVolume);
+    player.unMute();
+
+    if (playback?.state === 'playing') {
+      player.playVideo();
+      window.setTimeout(() => {
+        player.setVolume(nextVolume);
+        player.unMute();
+      }, 120);
+    }
+  }
 
   useEffect(() => {
     if (!currentTrack || !playerHostRef.current) {
@@ -158,9 +227,11 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
             setPlayerReady(true);
             playerRef.current?.setVolume(localVolume);
             playerRef.current?.mute();
+            syncPlayer('hard');
           },
         },
       });
+
       trackIdRef.current = currentTrack.id;
     });
 
@@ -169,73 +240,28 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     };
   }, [currentTrack, localVolume]);
 
-  function syncPlayerToPlayback(mode: 'soft' | 'hard' = 'soft') {
-    const player = playerRef.current;
-    if (!player || !currentTrack) {
-      return;
-    }
-
-    const expected = getExpectedOffset(playback);
-    const current = player.getCurrentTime?.() ?? 0;
-    const drift = Math.abs(current - expected);
-    const playerState = player.getPlayerState?.();
-
-    if (trackIdRef.current !== currentTrack.id) {
-      player.loadVideoById(currentTrack.youtubeVideoId, expected);
-      trackIdRef.current = currentTrack.id;
-      return;
-    }
-
-    if (playback?.state === 'playing') {
-      if (playerState !== window.YT?.PlayerState?.PLAYING) {
-        player.seekTo(expected, true);
-        player.playVideo();
-      } else if (drift > (mode === 'hard' ? 0.35 : 0.9)) {
-        player.seekTo(expected, true);
-      }
-    } else if (playback?.state === 'paused') {
-      if (drift > 0.35) {
-        player.seekTo(expected, true);
-      }
-      player.pauseVideo();
-    } else if (playback?.state === 'ended') {
-      player.pauseVideo();
-      if (expected > 0 && drift > 0.5) {
-        player.seekTo(expected, true);
-      }
-    }
-
-    player.setVolume(localVolume);
-
-    if (hasInteracted) {
-      player.unMute();
-    } else {
-      player.mute();
-    }
-  }
-
   useEffect(() => {
-    if (!playerReady || !currentTrack || !playerRef.current) {
+    if (!playerReady || !currentTrack) {
       return;
     }
 
-    syncPlayerToPlayback('hard');
+    syncPlayer('hard');
 
-    if (syncTimeoutRef.current) {
-      window.clearTimeout(syncTimeoutRef.current);
+    if (followUpSyncRef.current) {
+      window.clearTimeout(followUpSyncRef.current);
     }
 
-    syncTimeoutRef.current = window.setTimeout(() => {
-      syncPlayerToPlayback('hard');
-    }, 1200);
+    followUpSyncRef.current = window.setTimeout(() => {
+      syncPlayer('hard');
+    }, 1600);
 
     return () => {
-      if (syncTimeoutRef.current) {
-        window.clearTimeout(syncTimeoutRef.current);
-        syncTimeoutRef.current = null;
+      if (followUpSyncRef.current) {
+        window.clearTimeout(followUpSyncRef.current);
+        followUpSyncRef.current = null;
       }
     };
-  }, [currentTrack, hasInteracted, localVolume, playback, playerReady]);
+  }, [currentTrack, playback?.state, playback?.startedAt, playback?.offsetSeconds, hasInteracted, localVolume, playerReady]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -244,22 +270,21 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
       if (playerRef.current && readyRef.current) {
         const current = playerRef.current.getCurrentTime?.() ?? expected;
         setLiveOffset(playback?.state === 'playing' ? expected : current);
-
         if (currentTrack) {
-          syncPlayerToPlayback('soft');
+          syncPlayer('soft');
         }
       } else {
         setLiveOffset(expected);
       }
-    }, 1000);
+    }, 1500);
 
     return () => window.clearInterval(timer);
   }, [currentTrack, playback]);
 
   useEffect(() => {
     return () => {
-      if (syncTimeoutRef.current) {
-        window.clearTimeout(syncTimeoutRef.current);
+      if (followUpSyncRef.current) {
+        window.clearTimeout(followUpSyncRef.current);
       }
       playerRef.current?.destroy();
       playerRef.current = null;
@@ -280,45 +305,18 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     return 'set terminé';
   }, [playback]);
 
-  function unlockLocalAudio(nextVolume = localVolume) {
-    const player = playerRef.current;
-    if (!player || !currentTrack) {
-      return;
-    }
-
-    setHasInteracted(true);
-    player.setVolume(nextVolume);
-    player.unMute();
-
-    if (playback?.state === 'playing') {
-      player.playVideo();
-      window.setTimeout(() => {
-        player.setVolume(nextVolume);
-        player.unMute();
-        syncPlayerToPlayback('hard');
-      }, 80);
-      window.setTimeout(() => {
-        player.setVolume(nextVolume);
-        player.unMute();
-        syncPlayerToPlayback('hard');
-      }, 600);
-    }
-  }
-
   const progressWidth = Math.min(100, ((liveOffset % 240) / 240) * 100);
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.55fr)_340px]">
+    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.58fr)_360px]">
       <div className="overflow-hidden rounded-[1.9rem] border border-gold/20 bg-[radial-gradient(circle_at_top,#eab30822,transparent_32%),radial-gradient(circle_at_20%_70%,#9333ea22,transparent_28%),linear-gradient(180deg,#181224,#0a0811)] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.5)]">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="text-xs uppercase tracking-[0.32em] text-gold/70">Main stage</p>
             <h4 className="mt-2 line-clamp-2 text-2xl font-black text-white">{currentTrack?.title ?? 'Aucun titre chargé'}</h4>
-            <p className="mt-1 text-sm text-white/58">Une vraie scène compacte, avec la vidéo au centre et le booth autour.</p>
+            <p className="mt-1 text-sm text-white/58">Vidéo au centre, crowd en dessous, booth à droite. Enfin quelque chose de plus plug.dj.</p>
           </div>
-          <span className="rounded-full border border-gold/20 bg-gold/10 px-4 py-2 text-xs uppercase tracking-[0.22em] text-gold">
-            {stageBadge}
-          </span>
+          <span className="rounded-full border border-gold/20 bg-gold/10 px-4 py-2 text-xs uppercase tracking-[0.22em] text-gold">{stageBadge}</span>
         </div>
 
         <div className="relative overflow-hidden rounded-[1.6rem] border border-white/10 bg-[linear-gradient(180deg,#110d18,#05040a)]">
@@ -334,15 +332,11 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           </div>
 
           <div className="relative z-[1] p-4">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.3fr)_260px]">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_280px]">
               <div className="space-y-4">
                 <div className="relative overflow-hidden rounded-[1.45rem] border border-white/10 bg-black shadow-[0_12px_45px_rgba(0,0,0,0.55)]">
                   <div className="aspect-video w-full bg-black">
-                    {currentTrack ? (
-                      <div ref={playerHostRef} className="h-full w-full [&_iframe]:h-full [&_iframe]:w-full" />
-                    ) : (
-                      <div className="flex h-full items-center justify-center text-white/55">Ajoute un titre pour lancer la scène.</div>
-                    )}
+                    {currentTrack ? <div ref={playerHostRef} className="h-full w-full [&_iframe]:h-full [&_iframe]:w-full" /> : <div className="flex h-full items-center justify-center text-white/55">Ajoute un titre pour lancer la scène.</div>}
                   </div>
                   <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 via-black/50 to-transparent px-4 pb-4 pt-10">
                     <div className="flex items-center justify-between gap-3 text-sm text-white/80">
@@ -386,9 +380,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
 
               <div className="rounded-[1.4rem] border border-white/10 bg-black/35 p-4 backdrop-blur-sm">
                 <div className="mb-4 flex items-center gap-4">
-                  <div className="flex h-20 w-20 items-center justify-center rounded-[1.25rem] border border-gold/30 bg-[linear-gradient(180deg,#3b2a11,#140f08)] text-2xl font-black text-gold shadow-[0_0_30px_rgba(234,179,8,0.2)]">
-                    {getInitials(ownerLabel) || 'DJ'}
-                  </div>
+                  <div className="flex h-20 w-20 items-center justify-center rounded-[1.25rem] border border-gold/30 bg-[linear-gradient(180deg,#3b2a11,#140f08)] text-2xl font-black text-gold shadow-[0_0_30px_rgba(234,179,8,0.2)]">{getInitials(ownerLabel) || 'DJ'}</div>
                   <div className="min-w-0">
                     <p className="text-xs uppercase tracking-[0.24em] text-white/45">Now performing</p>
                     <h5 className="mt-1 truncate text-xl font-black text-white">{ownerLabel}</h5>
@@ -417,16 +409,13 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
 
       <div className="rounded-[1.8rem] border border-white/10 bg-black/25 p-5 text-white/78">
         <p className="text-xs uppercase tracking-[0.3em] text-gold/70">Scene controls</p>
-        <h4 className="mt-3 text-2xl font-black text-white">Simple et propre</h4>
-        <p className="mt-3 text-sm leading-6 text-white/68">On garde les contrôles utiles à droite, sans écraser la vidéo au centre.</p>
+        <h4 className="mt-3 text-2xl font-black text-white">Volume local</h4>
+        <p className="mt-3 text-sm leading-6 text-white/68">Je fais partir la vidéo automatiquement en muet. Le son auto sans geste utilisateur, le navigateur ne le laissera pas passer proprement — donc le volume sert de déverrouillage local clair.</p>
 
         <div className="mt-5 grid gap-3">
           <button
             type="button"
-            onClick={() => {
-              unlockLocalAudio();
-              onTogglePlayback(playback?.state === 'playing' ? 'paused' : 'playing', liveOffset);
-            }}
+            onClick={() => onTogglePlayback(playback?.state === 'playing' ? 'paused' : 'playing', liveOffset)}
             disabled={!currentTrack || !canControl}
             className="rounded-full bg-gold px-5 py-3 font-semibold text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
@@ -434,19 +423,17 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           </button>
           <button
             type="button"
-            onClick={() => {
-              unlockLocalAudio();
-              onNextTrack();
-            }}
+            onClick={() => onNextTrack()}
             disabled={!currentTrack || !canControl}
             className="rounded-full border border-white/15 px-5 py-3 font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
           >
             Morceau suivant
           </button>
-          <div className="rounded-[1.5rem] border border-emerald-400/20 bg-emerald-400/10 px-4 py-4">
-            <div className="flex items-center justify-between gap-3 text-sm font-semibold text-emerald-50">
-              <span>Volume local</span>
-              <span>{localVolume}%</span>
+
+          <div className="rounded-[1.6rem] border border-emerald-400/25 bg-emerald-400/10 px-5 py-5 shadow-[0_0_0_1px_rgba(52,211,153,0.08)]">
+            <div className="flex items-center justify-between gap-3">
+              <span className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-50">Volume</span>
+              <span className="rounded-full border border-emerald-300/30 bg-black/20 px-3 py-1 text-sm font-bold text-emerald-50">{localVolume}%</span>
             </div>
             <input
               type="range"
@@ -467,15 +454,18 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
               onInput={(event) => {
                 const nextVolume = Number((event.target as HTMLInputElement).value);
                 setLocalVolume(nextVolume);
-                if (!currentTrack) {
-                  return;
+                if (currentTrack) {
+                  unlockLocalAudio(nextVolume);
                 }
-                unlockLocalAudio(nextVolume);
               }}
               disabled={!currentTrack}
-              className="mt-3 w-full accent-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="mt-4 h-4 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-emerald-300 disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <p className="mt-2 text-xs leading-5 text-emerald-50/80">La vidéo démarre en muet. Toucher le volume sert juste à déverrouiller l’audio local.</p>
+            <div className="mt-3 flex items-center justify-between text-xs uppercase tracking-[0.18em] text-emerald-50/80">
+              <span>Muet</span>
+              <span>Fort</span>
+            </div>
+            <p className="mt-4 text-sm leading-6 text-emerald-50/85">Touchez le slider une seule fois pour activer l’audio local. Après ça, il sert juste de vrai volume, pas d’un bouton planqué chelou.</p>
           </div>
         </div>
       </div>
