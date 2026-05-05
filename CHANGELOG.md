@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.11] - 2026-05-05
+
+### Fixed
+- Volume local à 0 = mute réel côté client, au lieu d’un volume faible encore potentiellement audible selon le player YouTube
+- Conservation du comportement de déverrouillage audio pour les volumes supérieurs à 0
+
 ## [1.6.10] - 2026-05-05
 
 ### Fixed
