@@ -116,6 +116,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const playerRef = useRef<YouTubePlayer | null>(null);
   const readyRef = useRef(false);
   const trackIdRef = useRef<string | undefined>(track?.id);
+  const syncTimeoutRef = useRef<number | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
   const [liveOffset, setLiveOffset] = useState(0);
   const [hasInteracted, setHasInteracted] = useState(false);
@@ -138,11 +139,6 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         return;
       }
 
-      if (playerRef.current && trackIdRef.current !== currentTrack.id) {
-        playerRef.current.loadVideoById(currentTrack.youtubeVideoId, 0);
-        trackIdRef.current = currentTrack.id;
-      }
-
       if (playerRef.current) {
         return;
       }
@@ -160,13 +156,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           onReady: () => {
             readyRef.current = true;
             setPlayerReady(true);
-            playerRef.current?.setVolume(80);
+            playerRef.current?.setVolume(localVolume);
             playerRef.current?.mute();
-            if (playback?.state === 'playing') {
-              const expected = getExpectedOffset(playback);
-              playerRef.current?.seekTo(expected, true);
-              playerRef.current?.playVideo();
-            }
           },
         },
       });
@@ -176,52 +167,100 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     return () => {
       cancelled = true;
     };
-  }, [currentTrack]);
+  }, [currentTrack, localVolume]);
 
-  useEffect(() => {
-    if (!playerReady || !currentTrack || !playerRef.current) {
+  function syncPlayerToPlayback(mode: 'soft' | 'hard' = 'soft') {
+    const player = playerRef.current;
+    if (!player || !currentTrack) {
       return;
     }
 
-    const player = playerRef.current;
     const expected = getExpectedOffset(playback);
     const current = player.getCurrentTime?.() ?? 0;
     const drift = Math.abs(current - expected);
+    const playerState = player.getPlayerState?.();
 
     if (trackIdRef.current !== currentTrack.id) {
       player.loadVideoById(currentTrack.youtubeVideoId, expected);
       trackIdRef.current = currentTrack.id;
-    } else if (drift > 1.5) {
-      player.seekTo(expected, true);
+      return;
     }
 
     if (playback?.state === 'playing') {
-      player.playVideo();
-    } else {
+      if (playerState !== window.YT?.PlayerState?.PLAYING) {
+        player.seekTo(expected, true);
+        player.playVideo();
+      } else if (drift > (mode === 'hard' ? 0.35 : 0.9)) {
+        player.seekTo(expected, true);
+      }
+    } else if (playback?.state === 'paused') {
+      if (drift > 0.35) {
+        player.seekTo(expected, true);
+      }
       player.pauseVideo();
+    } else if (playback?.state === 'ended') {
+      player.pauseVideo();
+      if (expected > 0 && drift > 0.5) {
+        player.seekTo(expected, true);
+      }
     }
+
+    player.setVolume(localVolume);
 
     if (hasInteracted) {
       player.unMute();
     } else {
       player.mute();
     }
-  }, [currentTrack, hasInteracted, playback, playerReady]);
+  }
+
+  useEffect(() => {
+    if (!playerReady || !currentTrack || !playerRef.current) {
+      return;
+    }
+
+    syncPlayerToPlayback('hard');
+
+    if (syncTimeoutRef.current) {
+      window.clearTimeout(syncTimeoutRef.current);
+    }
+
+    syncTimeoutRef.current = window.setTimeout(() => {
+      syncPlayerToPlayback('hard');
+    }, 1200);
+
+    return () => {
+      if (syncTimeoutRef.current) {
+        window.clearTimeout(syncTimeoutRef.current);
+        syncTimeoutRef.current = null;
+      }
+    };
+  }, [currentTrack, hasInteracted, localVolume, playback, playerReady]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
+      const expected = getExpectedOffset(playback);
+
       if (playerRef.current && readyRef.current) {
-        setLiveOffset(playerRef.current.getCurrentTime?.() ?? getExpectedOffset(playback));
+        const current = playerRef.current.getCurrentTime?.() ?? expected;
+        setLiveOffset(playback?.state === 'playing' ? expected : current);
+
+        if (currentTrack) {
+          syncPlayerToPlayback('soft');
+        }
       } else {
-        setLiveOffset(getExpectedOffset(playback));
+        setLiveOffset(expected);
       }
-    }, 500);
+    }, 1000);
 
     return () => window.clearInterval(timer);
-  }, [playback]);
+  }, [currentTrack, playback]);
 
   useEffect(() => {
     return () => {
+      if (syncTimeoutRef.current) {
+        window.clearTimeout(syncTimeoutRef.current);
+      }
       playerRef.current?.destroy();
       playerRef.current = null;
       readyRef.current = false;
@@ -242,22 +281,28 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   }, [playback]);
 
   function unlockLocalAudio(nextVolume = localVolume) {
-    if (!playerRef.current || !currentTrack) {
+    const player = playerRef.current;
+    if (!player || !currentTrack) {
       return;
     }
 
-    const expected = getExpectedOffset(playback);
-
     setHasInteracted(true);
-    playerRef.current.seekTo(expected, true);
-
-    playerRef.current.setVolume(nextVolume);
+    player.setVolume(nextVolume);
+    player.unMute();
 
     if (playback?.state === 'playing') {
-      playerRef.current.playVideo();
+      player.playVideo();
+      window.setTimeout(() => {
+        player.setVolume(nextVolume);
+        player.unMute();
+        syncPlayerToPlayback('hard');
+      }, 80);
+      window.setTimeout(() => {
+        player.setVolume(nextVolume);
+        player.unMute();
+        syncPlayerToPlayback('hard');
+      }, 600);
     }
-
-    playerRef.current.unMute();
   }
 
   const progressWidth = Math.min(100, ((liveOffset % 240) / 240) * 100);
@@ -409,8 +454,18 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
               max={100}
               step={1}
               value={localVolume}
-              onChange={(event) => {
-                const nextVolume = Number(event.target.value);
+              onPointerDown={() => {
+                if (currentTrack) {
+                  unlockLocalAudio(localVolume);
+                }
+              }}
+              onTouchStart={() => {
+                if (currentTrack) {
+                  unlockLocalAudio(localVolume);
+                }
+              }}
+              onInput={(event) => {
+                const nextVolume = Number((event.target as HTMLInputElement).value);
                 setLocalVolume(nextVolume);
                 if (!currentTrack) {
                   return;

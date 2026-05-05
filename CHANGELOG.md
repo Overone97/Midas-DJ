@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.4] - 2026-05-05
+
+### Fixed
+- Resync client renforcé : correction périodique du drift pendant la lecture au lieu d’un seul recalage au changement d’état
+- Déverrouillage audio local plus robuste avec relances `play/unmute` après geste utilisateur sur le volume
+- Réduction du cas où un participant restait plusieurs secondes derrière le DJ après lancement
+
 ## [1.6.3] - 2026-05-05
 
 ### Changed
