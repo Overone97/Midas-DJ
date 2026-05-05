@@ -39,7 +39,7 @@
 - Parsing URL YouTube
 - Ajout à la queue
 - Lecture vidéo intégrée
-- Passage automatique au morceau suivant
+- Refresh live de la queue dans la room
 
 ## v1.5.0 — Realtime sync
 - Playback state serveur

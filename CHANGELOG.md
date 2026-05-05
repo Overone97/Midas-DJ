@@ -1,5 +1,17 @@
 # Changelog
 
+## [1.4.0] - 2026-05-05
+
+### Added
+- Queue YouTube réelle sur la page room avec récupération des `queue_items` Supabase
+- Formulaire d’ajout de titre par URL YouTube avec parsing d’URL et miniature automatique
+- Embed player sur le titre courant et refresh live de la queue via Realtime
+- Policy RLS pour autoriser les membres d’une room à ajouter des titres
+
+### Changed
+- La room hydrate maintenant ses premiers vrais médias au lieu d’un bloc queue purement décoratif
+- README et version applicative alignés sur la première release YouTube + queue
+
 ## [1.3.1] - 2026-05-05
 
 ### Added

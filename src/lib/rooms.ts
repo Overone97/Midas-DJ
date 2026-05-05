@@ -29,6 +29,19 @@ export type RoomMemberPreview = {
   online?: boolean;
 };
 
+export type QueueItemStatus = 'queued' | 'playing' | 'played' | 'skipped';
+
+export type QueueItemPreview = {
+  id: string;
+  youtubeVideoId: string;
+  title: string;
+  thumbnailUrl?: string | null;
+  durationSeconds?: number;
+  position: number;
+  status: QueueItemStatus;
+  addedByLabel: string;
+};
+
 export type RoomPageState = {
   status: 'live' | 'preview' | 'missing' | 'forbidden';
   envReady: boolean;
@@ -52,6 +65,9 @@ export type RoomPageState = {
     email?: string | null;
   };
   members: RoomMemberPreview[];
+  queue?: {
+    items: QueueItemPreview[];
+  };
   presence?: {
     enabled: boolean;
     connected: boolean;
@@ -159,5 +175,29 @@ export function getPreviewRoomState(slug: string): RoomPageState {
           { id: 'guest-1', label: 'Nora Pulse', role: 'member' },
           { id: 'guest-2', label: 'Sami Fade', role: 'member' },
         ],
+    queue: {
+      items: [
+        {
+          id: `${featured.slug}-1`,
+          youtubeVideoId: 'dQw4w9WgXcQ',
+          title: `${featured.name} opener`,
+          thumbnailUrl: 'https://i.ytimg.com/vi/dQw4w9WgXcQ/hqdefault.jpg',
+          durationSeconds: 212,
+          position: 1,
+          status: 'playing',
+          addedByLabel: featured.dj,
+        },
+        {
+          id: `${featured.slug}-2`,
+          youtubeVideoId: '3JZ4pnNtyxQ',
+          title: `${featured.vibe.split(',')[0]} selection`,
+          thumbnailUrl: 'https://i.ytimg.com/vi/3JZ4pnNtyxQ/hqdefault.jpg',
+          durationSeconds: 245,
+          position: 2,
+          status: 'queued',
+          addedByLabel: featured.type === 'private' ? 'Crew invité' : 'Nora Pulse',
+        },
+      ],
+    },
   };
 }

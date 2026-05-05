@@ -1,11 +1,36 @@
 import { AppShell } from '@/components/app-shell';
 import { LiveRoomPage } from '@/components/live-room-page';
-import { featuredRooms, getPreviewRoomState } from '@/lib/rooms';
+import { featuredRooms, getPreviewRoomState, type QueueItemPreview } from '@/lib/rooms';
 import { hasSupabaseEnv } from '@/lib/supabase/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
 
 function labelFromProfile(profile: { username?: string | null } | null, fallback: string) {
   return profile?.username?.trim() || fallback;
+}
+
+function mapQueueItems(rows: Array<{
+  id: string;
+  youtube_video_id: string;
+  title: string;
+  thumbnail_url: string | null;
+  duration_seconds: number;
+  position: number;
+  status: 'queued' | 'playing' | 'played' | 'skipped';
+  profiles?: { username?: string | null } | { username?: string | null }[] | null;
+}>): QueueItemPreview[] {
+  return rows.map((item, index) => {
+    const profile = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+    return {
+      id: item.id,
+      youtubeVideoId: item.youtube_video_id,
+      title: item.title,
+      thumbnailUrl: item.thumbnail_url,
+      durationSeconds: item.duration_seconds,
+      position: item.position ?? index + 1,
+      status: item.status,
+      addedByLabel: labelFromProfile(profile ?? null, `Member ${index + 1}`),
+    };
+  });
 }
 
 export function generateStaticParams() {
@@ -74,7 +99,7 @@ export default async function RoomSlugPage({ params }: { params: Promise<{ slug:
     );
   }
 
-  const [{ data: ownerProfile }, { data: membership }, { data: membersData }] = await Promise.all([
+  const [{ data: ownerProfile }, { data: membership }, { data: membersData }, { data: queueItemsData }] = await Promise.all([
     supabase.from('profiles').select('username').eq('id', room.owner_id).maybeSingle(),
     user
       ? supabase.from('room_members').select('role').eq('room_id', room.id).eq('user_id', user.id).maybeSingle()
@@ -84,6 +109,13 @@ export default async function RoomSlugPage({ params }: { params: Promise<{ slug:
       .select('role, profiles!room_members_user_id_fkey(id, username)')
       .eq('room_id', room.id)
       .limit(6),
+    supabase
+      .from('queue_items')
+      .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, profiles!queue_items_added_by_fkey(username)')
+      .eq('room_id', room.id)
+      .in('status', ['queued', 'playing'])
+      .order('position', { ascending: true })
+      .limit(20),
   ]);
 
   const role = user ? membership?.role ?? (user.id === room.owner_id ? 'owner' : 'visitor') : 'visitor';
@@ -105,6 +137,8 @@ export default async function RoomSlugPage({ params }: { params: Promise<{ slug:
       }, [])
     : [];
 
+  const queueItems = Array.isArray(queueItemsData) ? mapQueueItems(queueItemsData as never[]) : [];
+
   const state = {
     status: denied ? 'forbidden' : 'live',
     envReady: true,
@@ -116,6 +150,7 @@ export default async function RoomSlugPage({ params }: { params: Promise<{ slug:
       description: room.description ?? 'La room est prête côté backend. Player, queue et chat se branchent juste après.',
       ownerLabel: labelFromProfile(ownerProfile, `Owner ${room.owner_id.slice(0, 8)}`),
       ownerId: room.owner_id,
+      queueDepth: queueItems.length,
     },
     currentUser: {
       isLoggedIn: Boolean(user),
@@ -123,13 +158,16 @@ export default async function RoomSlugPage({ params }: { params: Promise<{ slug:
       email: user?.email,
     },
     members,
+    queue: {
+      items: queueItems,
+    },
   } as const;
 
   return (
     <AppShell
       eyebrow="Room"
       title={`${room.name} · Midas DJ`}
-      description="La room existe maintenant derrière une vraie route slug, avec contrôle d’accès et placeholders premium pour la suite."
+      description="La room existe maintenant derrière une vraie route slug, avec présence live, queue YouTube réelle et base solide pour la synchro player."
     >
       <LiveRoomPage initialState={state} />
     </AppShell>
