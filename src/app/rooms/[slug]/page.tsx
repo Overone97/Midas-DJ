@@ -1,5 +1,5 @@
 import { AppShell } from '@/components/app-shell';
-import { RoomPageView } from '@/components/room-page';
+import { LiveRoomPage } from '@/components/live-room-page';
 import { featuredRooms, getPreviewRoomState } from '@/lib/rooms';
 import { hasSupabaseEnv } from '@/lib/supabase/env';
 import { getSupabaseServerClient } from '@/lib/supabase/server';
@@ -22,7 +22,7 @@ export default async function RoomSlugPage({ params }: { params: Promise<{ slug:
         title={`Room · ${slug}`}
         description="Fallback statique GitHub Pages : la room garde une vraie URL crédible même sans backend branché."
       >
-        <RoomPageView state={getPreviewRoomState(slug)} />
+        <LiveRoomPage initialState={getPreviewRoomState(slug)} />
       </AppShell>
     );
   }
@@ -32,7 +32,7 @@ export default async function RoomSlugPage({ params }: { params: Promise<{ slug:
   if (!supabase) {
     return (
       <AppShell eyebrow="Room" title={`Room · ${slug}`} description="Client serveur Supabase indisponible.">
-        <RoomPageView state={getPreviewRoomState(slug)} />
+        <LiveRoomPage initialState={getPreviewRoomState(slug)} />
       </AppShell>
     );
   }
@@ -50,8 +50,8 @@ export default async function RoomSlugPage({ params }: { params: Promise<{ slug:
   if (roomError || !room) {
     return (
       <AppShell eyebrow="Room" title={`Room · ${slug}`} description="Aucune room correspondante n’a été trouvée.">
-        <RoomPageView
-          state={{
+        <LiveRoomPage
+          initialState={{
             ...getPreviewRoomState(slug),
             status: 'missing',
             envReady: true,
@@ -131,7 +131,7 @@ export default async function RoomSlugPage({ params }: { params: Promise<{ slug:
       title={`${room.name} · Midas DJ`}
       description="La room existe maintenant derrière une vraie route slug, avec contrôle d’accès et placeholders premium pour la suite."
     >
-      <RoomPageView state={state} />
+      <LiveRoomPage initialState={state} />
     </AppShell>
   );
 }

@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.3.1] - 2026-05-05
+
+### Added
+- Composant client `LiveRoomPage` pour hydrater une room avec la présence Supabase Realtime
+- Compteur de présence live et indicateurs online/offline dans le roster room
+
+### Changed
+- La route `/rooms/[slug]` rend maintenant la vue room via un wrapper client capable de suivre les présences live
+- Le type de state room accepte désormais les infos de présence et les visiteurs temporaires
+
 ## [1.3.0] - 2026-05-04
 
 ### Added

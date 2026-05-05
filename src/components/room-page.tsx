@@ -20,6 +20,7 @@ export function RoomPageView({ state }: { state: RoomPageState }) {
   const denied = state.status === 'forbidden';
   const missing = state.status === 'missing';
   const preview = state.status === 'preview';
+  const onlineMembers = state.members.filter((member) => member.online).length;
 
   return (
     <section className="space-y-8">
@@ -42,6 +43,11 @@ export function RoomPageView({ state }: { state: RoomPageState }) {
             {typeof state.room.listenerCount === 'number' ? (
               <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2">audience · {state.room.listenerCount}</span>
             ) : null}
+            {state.presence?.enabled ? (
+              <span className="rounded-full border border-emerald-400/20 bg-emerald-400/10 px-4 py-2 text-emerald-50">
+                présence · {state.presence.connected ? `${state.presence.onlineCount} en ligne` : 'connexion…'}
+              </span>
+            ) : null}
             {typeof state.room.queueDepth === 'number' ? (
               <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2">queue · {state.room.queueDepth} titres</span>
             ) : null}
@@ -61,7 +67,7 @@ export function RoomPageView({ state }: { state: RoomPageState }) {
                 : preview
                   ? 'Fallback GitHub Pages actif : UI crédible, sans backend ni session réelle.'
                   : state.currentUser.isLoggedIn
-                    ? `Connecté en ${state.currentUser.email}`
+                    ? `Connecté en ${state.currentUser.email}${state.presence?.enabled ? state.presence.connected ? ' · présence live active' : ' · présence live en attente' : ''}`
                     : 'Aucune session détectée côté serveur.'}
           </p>
         </div>
@@ -72,17 +78,25 @@ export function RoomPageView({ state }: { state: RoomPageState }) {
           <div className="rounded-[2rem] border border-white/10 bg-black/20 p-6">
             <p className="text-sm uppercase tracking-[0.2em] text-gold/75">Membres</p>
             <h3 className="mt-3 text-2xl font-bold">Qui est déjà dans la room</h3>
+            <p className="mt-2 text-sm text-white/58">
+              {state.presence?.enabled
+                ? `${onlineMembers} présence${onlineMembers > 1 ? 's' : ''} live détectée${state.presence.connected ? 's' : ''}.`
+                : 'Roster statique pour l’instant.'}
+            </p>
             <div className="mt-5 space-y-3">
               {state.members.length > 0 ? (
                 state.members.map((member) => (
                   <div key={member.id} className="flex items-center justify-between rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-                    <span className="font-medium text-white/88">{member.label}</span>
+                    <div className="flex items-center gap-3">
+                      <span className={`h-2.5 w-2.5 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.9)]' : 'bg-white/20'}`} />
+                      <span className="font-medium text-white/88">{member.label}</span>
+                    </div>
                     <span className={`rounded-full border px-3 py-1 text-xs ${roleAccent[member.role]}`}>{roleLabels[member.role]}</span>
                   </div>
                 ))
               ) : (
                 <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/60">
-                  Aucun roster exploitable pour l’instant. On garde un fallback propre jusqu’à brancher la présence live.
+                  Aucun roster exploitable pour l’instant. On garde un fallback propre jusqu’à brancher quelque chose de moins décoratif.
                 </div>
               )}
             </div>

@@ -25,7 +25,8 @@ export type LiveRoom = {
 export type RoomMemberPreview = {
   id: string;
   label: string;
-  role: Exclude<RoomRole, 'visitor'>;
+  role: RoomRole;
+  online?: boolean;
 };
 
 export type RoomPageState = {
@@ -51,6 +52,11 @@ export type RoomPageState = {
     email?: string | null;
   };
   members: RoomMemberPreview[];
+  presence?: {
+    enabled: boolean;
+    connected: boolean;
+    onlineCount: number;
+  };
 };
 
 export const featuredRooms: FeaturedRoom[] = [
