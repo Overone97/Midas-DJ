@@ -119,6 +119,10 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const audioRetryRef = useRef<number | null>(null);
   const lastPlayAttemptRef = useRef(0);
   const lastSeekRef = useRef(0);
+  const lastTrackLoadRef = useRef(0);
+  const lastKnownTimeRef = useRef(0);
+  const lastProgressAtRef = useRef(0);
+  const playerStateRef = useRef<number | null>(null);
   const audioUnlockedRef = useRef(false);
   const [playerReady, setPlayerReady] = useState(false);
   const [liveOffset, setLiveOffset] = useState(0);
@@ -140,32 +144,42 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     const current = player.getCurrentTime?.() ?? 0;
     const drift = Math.abs(current - expected);
     const ytState = window.YT?.PlayerState;
-    const state = player.getPlayerState?.();
+    const state = player.getPlayerState?.() ?? playerStateRef.current;
     const now = Date.now();
 
     if (trackIdRef.current !== currentTrack.id) {
       player.loadVideoById(currentTrack.youtubeVideoId, expected);
       trackIdRef.current = currentTrack.id;
+      lastTrackLoadRef.current = now;
       lastPlayAttemptRef.current = now;
+      lastSeekRef.current = now;
+      lastKnownTimeRef.current = expected;
+      lastProgressAtRef.current = now;
       return;
     }
 
     if (playback?.state === 'playing') {
       const seekThreshold = mode === 'hard' ? 1.1 : 2.4;
-      const canSeekNow = now - lastSeekRef.current > 5000;
+      const justLoaded = now - lastTrackLoadRef.current < 4500;
+      const buffering = state === ytState?.BUFFERING;
+      const canSeekNow = !buffering && now - lastSeekRef.current > (justLoaded ? 7000 : 5000);
+      const seemsStuck = now - lastProgressAtRef.current > 4000;
 
-      if (drift > seekThreshold && canSeekNow) {
+      if (drift > seekThreshold && canSeekNow && (!justLoaded || seemsStuck)) {
         player.seekTo(expected, true);
         lastSeekRef.current = now;
+        lastKnownTimeRef.current = expected;
       }
 
-      if (state !== ytState?.PLAYING && now - lastPlayAttemptRef.current > 1400) {
+      const shouldReplay = state !== ytState?.PLAYING && state !== ytState?.BUFFERING;
+      if (shouldReplay && now - lastPlayAttemptRef.current > (justLoaded ? 2500 : 1400)) {
         player.playVideo();
         lastPlayAttemptRef.current = now;
       }
     } else if (playback?.state === 'paused') {
-      if (drift > 0.4) {
+      if (drift > 0.4 && now - lastSeekRef.current > 1500) {
         player.seekTo(expected, true);
+        lastSeekRef.current = now;
       }
       if (state === ytState?.PLAYING || state === ytState?.BUFFERING) {
         player.pauseVideo();
@@ -255,9 +269,17 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           onReady: () => {
             readyRef.current = true;
             setPlayerReady(true);
+            lastTrackLoadRef.current = Date.now();
+            lastProgressAtRef.current = Date.now();
             playerRef.current?.setVolume(localVolume);
             playerRef.current?.mute();
             syncPlayer('hard');
+          },
+          onStateChange: (event) => {
+            playerStateRef.current = event.data;
+            if (event.data === window.YT?.PlayerState?.PLAYING) {
+              lastProgressAtRef.current = Date.now();
+            }
           },
         },
       });
@@ -299,6 +321,10 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
 
       if (playerRef.current && readyRef.current) {
         const current = playerRef.current.getCurrentTime?.() ?? expected;
+        if (Math.abs(current - lastKnownTimeRef.current) > 0.2) {
+          lastKnownTimeRef.current = current;
+          lastProgressAtRef.current = Date.now();
+        }
         setLiveOffset(playback?.state === 'playing' ? expected : current);
         if (currentTrack) {
           syncPlayer('soft');

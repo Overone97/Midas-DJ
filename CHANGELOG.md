@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.9] - 2026-05-05
+
+### Fixed
+- Stabilisation de l’arrivée d’un second participant : le player évite désormais de relancer/seek en boucle pendant la phase de chargement join-in-progress
+- Garde-fous supplémentaires sur les `playVideo`/`seekTo` quand le player YouTube bufferise ou n’a pas encore commencé à progresser
+
 ## [1.6.8] - 2026-05-05
 
 ### Changed
