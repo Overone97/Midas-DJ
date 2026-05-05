@@ -1,6 +1,6 @@
 # Midas DJ
 
-**Version:** 1.5.0
+**Version:** 1.5.1
 
 Midas DJ est une plateforme d’écoute sociale en temps réel, inspirée de plug.dj et repensée pour le web moderne.
 
@@ -14,7 +14,7 @@ Créer une expérience où l’on peut :
 - prendre la main comme DJ à tour de rôle ;
 - voter, skipper et modérer sans transformer la room en zoo.
 
-## Scope de la release 1.5.0
+## Scope de la release 1.5.1
 
 Cette release fait enfin entrer la musique dans la room :
 - **queue YouTube réelle** branchée à Supabase ;

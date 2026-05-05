@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.5.1] - 2026-05-05
+
+### Added
+- Habillage visuel de scène plus proche de plug.dj avec booth DJ, crowd et éclairages de stage
+- Cartes crowd/booth dérivées des membres présents pour donner une vraie sensation de room vivante
+
+### Changed
+- Le player sync est maintenant mis en scène comme un dancefloor au lieu d’un simple bloc technique
+
 ## [1.5.0] - 2026-05-05
 
 ### Added
