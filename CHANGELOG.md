@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.10] - 2026-05-05
+
+### Fixed
+- Passage automatique au morceau suivant quand la vidéo atteint réellement la fin côté DJ
+- Protection contre les doubles déclenchements de `next track` sur la même piste
+
 ## [1.6.9] - 2026-05-05
 
 ### Fixed
