@@ -1,5 +1,4 @@
 import type { SupabaseClient, User } from '@supabase/supabase-js';
-import { DEFAULT_AVATAR } from '@/lib/avatar';
 
 function slugifyUsername(value: string) {
   return value
@@ -30,10 +29,6 @@ export async function ensureProfile(supabase: SupabaseClient, user: User) {
       {
         id: user.id,
         username: candidate,
-        avatar_species: DEFAULT_AVATAR.species,
-        avatar_accessories: DEFAULT_AVATAR.accessories,
-        avatar_outfit_color: DEFAULT_AVATAR.outfitColor,
-        avatar_badge: DEFAULT_AVATAR.badge,
       },
       {
         onConflict: 'id',
