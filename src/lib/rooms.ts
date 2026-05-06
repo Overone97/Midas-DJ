@@ -66,6 +66,14 @@ export type ChatMessagePreview = {
   authorAvatar?: AvatarConfig;
 };
 
+export type RoomReactionType = 'woot' | 'grab' | 'meh';
+
+export type RoomReactionSummary = {
+  currentQueueItemId?: string | null;
+  counts: Record<RoomReactionType, number>;
+  currentUserReaction?: RoomReactionType | null;
+};
+
 export type RoomPageState = {
   status: 'live' | 'preview' | 'missing' | 'forbidden';
   envReady: boolean;
@@ -99,6 +107,7 @@ export type RoomPageState = {
   chat?: {
     messages: ChatMessagePreview[];
   };
+  reactions?: RoomReactionSummary;
   presence?: {
     enabled: boolean;
     connected: boolean;

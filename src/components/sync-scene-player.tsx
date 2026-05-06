@@ -448,7 +448,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           <div className="relative z-[1] p-2 md:p-3">
             <div>
               <div className="relative min-h-[44rem] overflow-hidden rounded-[1.6rem] border border-fuchsia-300/15 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.6)] xl:min-h-[50rem]">
-                  <div className="absolute inset-x-[10%] top-5 z-[1] h-[43%] overflow-hidden rounded-[1.55rem] border border-white/10 bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_70px_rgba(0,0,0,0.45)]">
+                  <div className="absolute inset-x-[12%] top-6 z-[1] h-[39%] overflow-hidden rounded-[1.55rem] border border-white/10 bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_70px_rgba(0,0,0,0.45)]">
                     <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-white/60">
                       <span>Screen wall</span>
                       <span>{currentTrack ? 'live video' : 'offline'}</span>
@@ -468,7 +468,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                     <span>Deck B</span>
                   </div>
 
-                  <div className="absolute left-1/2 bottom-[12.6rem] z-[6] flex -translate-x-1/2 flex-col items-center">
+                  <div className="absolute left-1/2 bottom-[13.5rem] z-[6] flex -translate-x-1/2 flex-col items-center">
                     <div className="absolute -top-10 h-32 w-32 rounded-full bg-fuchsia-400/20 blur-2xl" />
                     <AvatarDisplay avatar={members.find((member) => member.role === 'owner')?.avatar} label={ownerLabel} size="lg" badge="DJ" />
                     <span className="mt-2 rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-fuchsia-50">DJ booth</span>
@@ -492,20 +492,30 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                       <span>{crowdMembers.length > 0 ? `${crowdMembers.length} auditeurs visibles` : 'en attente'}</span>
                     </div>
                     <div className="rounded-[1.6rem] border border-cyan-300/8 bg-[linear-gradient(180deg,rgba(20,18,32,0.76),rgba(8,8,14,0.82))] px-4 py-5 shadow-[inset_0_0_24px_rgba(34,211,238,0.03)]">
-                    <div className="flex min-h-[13.8rem] items-end gap-3 overflow-x-auto pb-1">
+                    <div className="mb-4 grid grid-cols-3 gap-2 text-[10px] uppercase tracking-[0.16em] text-white/44">
+                      <div className="rounded-full border border-white/8 bg-white/5 px-3 py-2 text-center">front rail</div>
+                      <div className="rounded-full border border-fuchsia-300/12 bg-fuchsia-300/6 px-3 py-2 text-center text-fuchsia-100/55">crowd heat</div>
+                      <div className="rounded-full border border-cyan-300/12 bg-cyan-300/6 px-3 py-2 text-center text-cyan-100/55">live listeners</div>
+                    </div>
+                    <div className="flex min-h-[14.2rem] items-end gap-3 overflow-x-auto pb-1">
                       {crowdMembers.length > 0 ? (
-                        crowdMembers.map((member) => (
-                          <div key={member.id} className="flex min-w-[5.6rem] flex-col items-center justify-end">
+                        crowdMembers.map((member, index) => {
+                          const laneHeight = index % 3 === 0 ? 'h-[7.2rem]' : index % 3 === 1 ? 'h-[6.4rem]' : 'h-[7.8rem]';
+                          const glow = member.online ? 'border-cyan-300/25 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,0.08)]' : 'border-white/10 bg-white/5';
+
+                          return (
+                          <div key={member.id} className="crowd-bob flex min-w-[5.9rem] flex-col items-center justify-end" style={{ animationDelay: `${index * 0.18}s` }}>
                             <div className={`mb-1 h-2 w-2 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.7)]' : 'bg-white/20'}`} />
-                            <div className={`relative h-[6.6rem] w-[4.9rem] rounded-[1.2rem_1.2rem_0.7rem_0.7rem] border transition ${member.online ? 'border-cyan-300/25 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,0.08)]' : 'border-white/10 bg-white/5'}`}>
+                            <div className={`relative w-[4.9rem] rounded-[1.2rem_1.2rem_0.7rem_0.7rem] border transition ${laneHeight} ${glow}`}>
                               <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-5">
                                 <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" />
                               </div>
+                              <div className="absolute inset-x-3 top-3 h-1 rounded-full bg-white/10" />
                               <div className="absolute inset-x-2 bottom-2 h-8 rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />
                             </div>
                             <p className="mt-2 max-w-[4.8rem] truncate text-center text-[11px] font-semibold text-white/82">{member.label}</p>
                           </div>
-                        ))
+                        )})
                       ) : (
                         <div className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/55">La fosse est encore vide.</div>
                       )}

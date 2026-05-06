@@ -63,3 +63,17 @@ a {
 .animate-chat-pop {
   animation: chat-pop 220ms ease-out;
 }
+
+@keyframes crowd-bob {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-5px);
+  }
+}
+
+.crowd-bob {
+  animation: crowd-bob 2.6s ease-in-out infinite;
+}

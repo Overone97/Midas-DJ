@@ -112,9 +112,9 @@ create table if not exists public.votes (
   room_id uuid not null references public.rooms (id) on delete cascade,
   queue_item_id uuid not null references public.queue_items (id) on delete cascade,
   user_id uuid not null references public.profiles (id) on delete cascade,
-  type text not null check (type in ('like', 'skip')),
+  type text not null check (type in ('woot', 'grab', 'meh')),
   created_at timestamptz not null default timezone('utc', now()),
-  unique (queue_item_id, user_id, type)
+  unique (queue_item_id, user_id)
 );
 
 create table if not exists public.messages (
@@ -322,6 +322,28 @@ on public.votes
 for select
 to authenticated
 using (true);
+
+drop policy if exists "members can react to tracks" on public.votes;
+create policy "members can react to tracks"
+on public.votes
+for insert
+to authenticated
+with check (
+  auth.uid() = user_id
+  and exists (
+    select 1 from public.room_members
+    where room_members.room_id = votes.room_id
+      and room_members.user_id = auth.uid()
+      and room_members.is_banned = false
+  )
+);
+
+drop policy if exists "users can remove their reactions" on public.votes;
+create policy "users can remove their reactions"
+on public.votes
+for delete
+to authenticated
+using (auth.uid() = user_id);
 
 drop policy if exists "messages visible to authenticated users" on public.messages;
 create policy "messages visible to authenticated users"
