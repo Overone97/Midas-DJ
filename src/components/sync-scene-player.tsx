@@ -430,7 +430,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const ownerPalette = getAvatarPalette(ownerLabel);
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(0,1.62fr)_360px]">
+    <div className="grid gap-4 xl:grid-cols-[minmax(0,1.95fr)_300px]">
       <div className="overflow-hidden rounded-[2rem] border border-fuchsia-400/20 bg-[radial-gradient(circle_at_top,#fb718522,transparent_28%),radial-gradient(circle_at_15%_75%,#9333ea26,transparent_30%),radial-gradient(circle_at_85%_20%,#22d3ee22,transparent_28%),linear-gradient(180deg,#20112d,#09060f)] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0">
@@ -455,7 +455,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           </div>
 
           <div className="relative z-[1] p-4">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.18fr)_320px]">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_260px]">
               <div className="space-y-4">
                 <div className="relative overflow-hidden rounded-[1.6rem] border border-white/10 bg-[radial-gradient(circle_at_top,#ffffff12,transparent_30%),linear-gradient(180deg,#09080d,#040307)] shadow-[0_18px_60px_rgba(0,0,0,0.6)]">
                   <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-40 bg-[linear-gradient(180deg,transparent,rgba(0,0,0,0.84)_45%,rgba(0,0,0,0.98))]" />
@@ -558,7 +558,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         </div>
       </div>
 
-      <div className="rounded-[1.9rem] border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(7,10,18,0.96),rgba(11,15,23,0.92))] p-5 text-white/78 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
+      <div className="rounded-[1.6rem] border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(7,10,18,0.96),rgba(11,15,23,0.92))] p-4 text-white/78 shadow-[0_18px_60px_rgba(0,0,0,0.32)]">
         <p className="text-xs uppercase tracking-[0.3em] text-cyan-200/70">Booth controls</p>
         <h4 className="mt-3 text-2xl font-black text-white">Volume local</h4>
         <p className="mt-3 text-sm leading-6 text-white/68">Je fais partir la vidéo automatiquement en muet. Le son auto sans geste utilisateur, le navigateur ne le laissera pas passer proprement — donc le volume sert de déverrouillage local clair.</p>
