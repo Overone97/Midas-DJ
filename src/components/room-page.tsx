@@ -1,6 +1,7 @@
 'use client';
 
 import Link from 'next/link';
+import { useEffect, useRef } from 'react';
 import { AvatarDisplay } from '@/components/avatar-display';
 import { SyncScenePlayer } from '@/components/sync-scene-player';
 import type { AvatarConfig } from '@/lib/avatar';
@@ -98,6 +99,16 @@ export function RoomPageView({
   const queueItems = state.queue?.items ?? [];
   const currentTrack = queueItems.find((item) => item.id === state.playback?.currentQueueItemId) ?? queueItems.find((item) => item.status === 'playing') ?? queueItems[0];
   const chatMessages = state.chat?.messages ?? [];
+  const chatScrollRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    const node = chatScrollRef.current;
+    if (!node) {
+      return;
+    }
+
+    node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' });
+  }, [chatMessages.length]);
 
   return (
     <section className="space-y-4">
@@ -166,7 +177,7 @@ export function RoomPageView({
         <div className="rounded-[1.8rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(8,14,20,0.96),rgba(8,10,16,0.94))] p-4 xl:sticky xl:top-4">
           <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-100/72">Chat live</p>
           <h3 className="mt-1 text-lg font-black text-white">Le dancefloor parle</h3>
-          <div className="mt-4 max-h-[46rem] space-y-2 overflow-y-auto rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-3 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
+          <div ref={chatScrollRef} className="mt-4 max-h-[46rem] space-y-2 overflow-y-auto rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-3 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
             {chatMessages.length > 0 ? (
               chatMessages.slice(-18).map((message) => (
                 <div key={message.id} className="rounded-[1.1rem] border-l-2 border-cyan-300/60 bg-[linear-gradient(90deg,rgba(34,211,238,0.14),rgba(255,255,255,0.02))] px-3 py-2.5 shadow-[0_0_18px_rgba(34,211,238,0.08)]">
