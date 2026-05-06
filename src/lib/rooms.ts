@@ -1,3 +1,5 @@
+import type { AvatarConfig } from '@/lib/avatar';
+
 export type RoomType = 'public' | 'private';
 export type RoomRole = 'owner' | 'mod' | 'member' | 'visitor';
 
@@ -27,6 +29,7 @@ export type RoomMemberPreview = {
   label: string;
   role: RoomRole;
   online?: boolean;
+  avatar?: AvatarConfig;
 };
 
 export type QueueItemStatus = 'queued' | 'playing' | 'played' | 'skipped';
@@ -40,6 +43,7 @@ export type QueueItemPreview = {
   position: number;
   status: QueueItemStatus;
   addedByLabel: string;
+  addedByAvatar?: AvatarConfig;
 };
 
 export type PlaybackMode = 'playing' | 'paused' | 'ended';
@@ -59,6 +63,7 @@ export type ChatMessagePreview = {
   authorLabel: string;
   userId?: string;
   createdAt: string;
+  authorAvatar?: AvatarConfig;
 };
 
 export type RoomPageState = {
@@ -83,6 +88,8 @@ export type RoomPageState = {
     isLoggedIn: boolean;
     role: RoomRole;
     email?: string | null;
+    label?: string;
+    avatar?: AvatarConfig;
   };
   members: RoomMemberPreview[];
   queue?: {
