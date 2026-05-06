@@ -50,7 +50,10 @@ class GlobalAudioController {
 
   private applyToSource(source: AudioSourceHandle) {
     source.setVolume?.(this.getEffectiveMute() ? 0 : this.state.volume);
-    source.setMuted?.(this.getEffectiveMute());
+
+    if (source.setMuted) {
+      source.setMuted(this.state.muted);
+    }
   }
 
   private applyToAllSources() {
