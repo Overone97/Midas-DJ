@@ -186,8 +186,14 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
       }
     }
 
-    const localVolume = audioUnlockedRef.current || globalAudioState.hasInteracted ? (globalAudioState.muted ? 0 : globalAudioState.volume) : 0;
-    player.setVolume(localVolume);
+    if (!audioUnlockedRef.current && !globalAudioState.hasInteracted) {
+      player.mute();
+    } else if (globalAudioState.muted) {
+      player.mute();
+    } else {
+      player.unMute();
+    }
+
   }
 
   function primeAudioAndPlay() {
@@ -197,8 +203,11 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     }
 
     audioUnlockedRef.current = true;
-    const localVolume = globalAudioState.muted ? 0 : globalAudioState.volume;
-    player.setVolume(localVolume);
+    if (globalAudioState.muted) {
+      player.mute();
+    } else {
+      player.unMute();
+    }
     player.playVideo();
     lastPlayAttemptRef.current = Date.now();
 
@@ -213,7 +222,11 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         return;
       }
 
-      currentPlayer.setVolume(globalAudioState.muted ? 0 : globalAudioState.volume);
+      if (globalAudioState.muted) {
+        currentPlayer.mute();
+      } else {
+        currentPlayer.unMute();
+      }
 
       if (playback?.state === 'playing') {
         currentPlayer.playVideo();
@@ -261,7 +274,6 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
             setPlayerReady(true);
             lastTrackLoadRef.current = Date.now();
             lastProgressAtRef.current = Date.now();
-            playerRef.current?.setVolume(0);
             syncPlayer('hard');
           },
           onStateChange: (event) => {
@@ -285,7 +297,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     return () => {
       cancelled = true;
     };
-  }, [currentTrack, globalAudioState.muted, globalAudioState.volume]);
+  }, [currentTrack, globalAudioState.muted]);
 
   useEffect(() => {
     return globalAudioController.registerSource(`youtube-scene-${currentTrack?.id ?? 'idle'}`, {
@@ -299,16 +311,18 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         playerRef.current?.pauseVideo();
       },
       stop: () => {
-        playerRef.current?.setVolume(0);
+        playerRef.current?.mute();
         playerRef.current?.pauseVideo();
         playerRef.current?.seekTo(0, true);
       },
-      setVolume: (volume) => {
-        playerRef.current?.setVolume(volume);
-      },
       setMuted: (muted) => {
         const canOutputAudio = audioUnlockedRef.current || globalAudioController.getSnapshot().hasInteracted;
-        playerRef.current?.setVolume(canOutputAudio ? (muted ? 0 : globalAudioController.getSnapshot().volume) : 0);
+        if (!canOutputAudio || muted) {
+          playerRef.current?.mute();
+          return;
+        }
+
+        playerRef.current?.unMute();
       },
     });
   }, [currentTrack]);
@@ -338,7 +352,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         followUpSyncRef.current = null;
       }
     };
-  }, [currentTrack, playback?.state, playback?.startedAt, playback?.offsetSeconds, globalAudioState.hasInteracted, globalAudioState.muted, globalAudioState.volume, playerReady]);
+  }, [currentTrack, playback?.state, playback?.startedAt, playback?.offsetSeconds, globalAudioState.hasInteracted, globalAudioState.muted, playerReady]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
