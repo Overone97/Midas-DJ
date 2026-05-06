@@ -437,7 +437,27 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
             <p className="text-[10px] uppercase tracking-[0.3em] text-gold/70">Main stage</p>
             <h4 className="mt-1 line-clamp-2 text-xl font-black text-white">{currentTrack?.title ?? 'Aucun titre chargé'}</h4>
           </div>
-          <span className="rounded-full border border-gold/20 bg-gold/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-gold">{stageBadge}</span>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5">
+              <div className="relative flex h-8 w-8 items-center justify-center rounded-full border border-gold/30 bg-[linear-gradient(180deg,#4a3210,#171009)] text-[10px] font-black text-gold">{getInitials(ownerLabel) || 'DJ'}</div>
+              <div className="min-w-0">
+                <p className="text-[9px] uppercase tracking-[0.18em] text-white/45">DJ booth</p>
+                <p className="max-w-[8rem] truncate text-[11px] font-semibold text-white">{ownerLabel}</p>
+              </div>
+            </div>
+            <div className="flex items-end gap-1 rounded-full border border-fuchsia-300/10 bg-white/5 px-2.5 py-2">
+              {Array.from({ length: 8 }).map((_, index) => {
+                const base = playback?.state === 'playing' ? 8 + ((index * 11 + Math.floor(liveOffset * 10)) % 12) : 6;
+                return <span key={index} className="w-1 rounded-full bg-gradient-to-t from-gold via-amber-300 to-white/90" style={{ height: `${base}px` }} />;
+              })}
+            </div>
+            <div className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-[10px] text-white/68">
+              <span className="font-semibold text-white/82">{playback?.state ?? 'aucun'}</span>
+              <span className="mx-1.5 text-white/30">•</span>
+              <span>{formatClock(getExpectedOffset(playback))}</span>
+            </div>
+            <span className="rounded-full border border-gold/20 bg-gold/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-gold">{stageBadge}</span>
+          </div>
         </div>
 
         <div className="relative overflow-hidden rounded-[1.9rem] border border-white/10 bg-[linear-gradient(180deg,#140d1d,#05040a)]">
@@ -454,9 +474,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           </div>
 
           <div className="relative z-[1] p-2 md:p-3">
-            <div className="grid gap-3 lg:grid-cols-[minmax(0,2.08fr)_180px]">
-              <div>
-                <div className="relative min-h-[44rem] overflow-hidden rounded-[1.6rem] border border-fuchsia-300/15 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.6)] xl:min-h-[50rem]">
+            <div>
+              <div className="relative min-h-[44rem] overflow-hidden rounded-[1.6rem] border border-fuchsia-300/15 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.6)] xl:min-h-[50rem]">
                   <div className="absolute inset-x-[7%] top-4 z-[1] h-[48%] overflow-hidden rounded-[1.55rem] border border-white/10 bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_70px_rgba(0,0,0,0.45)]">
                     <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-white/60">
                       <span>Screen wall</span>
@@ -525,32 +544,6 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                     </div>
                   </div>
                 </div>
-              </div>
-
-              <div className="rounded-[1.2rem] border border-gold/15 bg-[linear-gradient(180deg,rgba(20,14,24,0.95),rgba(9,7,15,0.92))] p-3 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)] lg:self-start lg:sticky lg:top-4">
-                <div className="mb-3 flex items-center gap-3">
-                  <div className="relative flex h-14 w-14 items-center justify-center rounded-[1rem] border border-gold/35 bg-[linear-gradient(180deg,#4a3210,#171009)] text-lg font-black text-gold shadow-[0_0_25px_rgba(234,179,8,0.2)] before:absolute before:inset-x-2 before:top-2 before:h-[2px] before:rounded-full before:bg-gold/50">{getInitials(ownerLabel) || 'DJ'}</div>
-                  <div className="min-w-0">
-                    <p className="text-[10px] uppercase tracking-[0.22em] text-white/45">Now performing</p>
-                    <h5 className="truncate text-base font-black text-white">{ownerLabel}</h5>
-                    <p className="mt-0.5 text-xs text-white/58">{canControl ? 'Tu pilotes la scène.' : 'Tu suis le set en audience sync.'}</p>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-8 items-end gap-1 rounded-[0.9rem] border border-fuchsia-300/10 bg-white/5 p-2">
-                  {Array.from({ length: 8 }).map((_, index) => {
-                    const base = playback?.state === 'playing' ? 24 + ((index * 11 + Math.floor(liveOffset * 10)) % 50) : 18;
-                    return <span key={index} className="rounded-full bg-gradient-to-t from-gold via-amber-300 to-white/90 transition-all" style={{ height: `${base}px` }} />;
-                  })}
-                </div>
-
-                <div className="mt-3 rounded-[1rem] border border-white/10 bg-[linear-gradient(180deg,rgba(255,255,255,0.05),rgba(255,255,255,0.03))] p-3 text-xs text-white/64">
-                  <p>État partagé · {playback?.state ?? 'aucun'}</p>
-                  <p className="mt-1">Offset room · {formatClock(getExpectedOffset(playback))}</p>
-                  <p className="mt-1 truncate">Track live · {currentTrack?.youtubeVideoId ?? '—'}</p>
-                  <p className="mt-1">Booth owner · {ownerLabel}</p>
-                </div>
-              </div>
             </div>
           </div>
         </div>
