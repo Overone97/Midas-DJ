@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AvatarDisplay } from '@/components/avatar-display';
 import { SyncScenePlayer } from '@/components/sync-scene-player';
 import type { AvatarConfig } from '@/lib/avatar';
-import type { RoomPageState, RoomReactionType, RoomRole } from '@/lib/rooms';
+import type { RoomPageState, RoomReactionSummary, RoomReactionType, RoomRole } from '@/lib/rooms';
 
 type QueueComposerProps = {
   url: string;
@@ -99,7 +99,6 @@ export function RoomPageView({
   avatarControls?: AvatarControlsProps;
   reactionControls?: ReactionControlsProps;
 }) {
-  const isPrivate = state.room.type === 'private';
   const denied = state.status === 'forbidden';
   const missing = state.status === 'missing';
   const preview = state.status === 'preview';
@@ -109,6 +108,30 @@ export function RoomPageView({
   const chatMessages = state.chat?.messages ?? [];
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<'chat' | 'users'>('chat');
+  const [lastSeenMessageId, setLastSeenMessageId] = useState<string | null>(chatMessages.at(-1)?.id ?? null);
+
+  const displayedMessages = useMemo(() => chatMessages.slice(-24), [chatMessages]);
+
+  const firstUnreadMessageId = useMemo(() => {
+    if (!displayedMessages.length) {
+      return null;
+    }
+
+    if (!lastSeenMessageId) {
+      return displayedMessages[0]?.id ?? null;
+    }
+
+    const seenIndex = displayedMessages.findIndex((message) => message.id === lastSeenMessageId);
+    if (seenIndex === -1) {
+      return displayedMessages[0]?.id ?? null;
+    }
+
+    return displayedMessages[seenIndex + 1]?.id ?? null;
+  }, [displayedMessages, lastSeenMessageId]);
+
+  function isNearBottom(node: HTMLDivElement) {
+    return node.scrollHeight - node.scrollTop - node.clientHeight < 48;
+  }
 
   useEffect(() => {
     const node = chatScrollRef.current;
@@ -116,8 +139,52 @@ export function RoomPageView({
       return;
     }
 
-    node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' });
-  }, [chatMessages.length]);
+    const shouldFollow = rightPanelTab === 'chat' && isNearBottom(node);
+    if (shouldFollow) {
+      node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' });
+      if (chatMessages.length > 0) {
+        setLastSeenMessageId(chatMessages.at(-1)?.id ?? null);
+      }
+    }
+  }, [chatMessages.length, rightPanelTab]);
+
+  useEffect(() => {
+    if (rightPanelTab !== 'chat') {
+      return;
+    }
+
+    const node = chatScrollRef.current;
+    if (!node) {
+      return;
+    }
+
+    const handleScroll = () => {
+      if (isNearBottom(node) && chatMessages.length > 0) {
+        setLastSeenMessageId(chatMessages.at(-1)?.id ?? null);
+      }
+    };
+
+    handleScroll();
+    node.addEventListener('scroll', handleScroll);
+    return () => node.removeEventListener('scroll', handleScroll);
+  }, [chatMessages, rightPanelTab]);
+
+  useEffect(() => {
+    if (rightPanelTab === 'chat' && chatMessages.length > 0 && !firstUnreadMessageId) {
+      setLastSeenMessageId(chatMessages.at(-1)?.id ?? null);
+    }
+  }, [chatMessages, firstUnreadMessageId, rightPanelTab]);
+
+  const unreadCount = useMemo(() => {
+    if (!firstUnreadMessageId) {
+      return 0;
+    }
+
+    const firstUnreadIndex = displayedMessages.findIndex((entry) => entry.id === firstUnreadMessageId);
+    return firstUnreadIndex === -1 ? 0 : displayedMessages.length - firstUnreadIndex;
+  }, [displayedMessages, firstUnreadMessageId]);
+
+  const reactionSummary: RoomReactionSummary | undefined = state.reactions;
 
   return (
     <section className="space-y-4">
@@ -169,6 +236,7 @@ export function RoomPageView({
             <SyncScenePlayer
               track={currentTrack}
               playback={state.playback}
+              reactions={reactionSummary}
               canControl={playerControls?.canControl ?? false}
               members={state.members}
               ownerLabel={state.room.ownerLabel}
@@ -190,7 +258,7 @@ export function RoomPageView({
               <h3 className="mt-1 text-lg font-black text-white">Le dancefloor parle</h3>
             </div>
             <div className="flex rounded-full border border-white/10 bg-black/25 p-1 text-xs font-semibold text-white/70">
-              <button type="button" onClick={() => setRightPanelTab('chat')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'chat' ? 'bg-cyan-300/16 text-cyan-50' : 'hover:bg-white/6'}`}>Chat</button>
+              <button type="button" onClick={() => setRightPanelTab('chat')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'chat' ? 'bg-cyan-300/16 text-cyan-50' : 'hover:bg-white/6'}`}>Chat{unreadCount > 0 ? <span className="ml-2 rounded-full bg-fuchsia-400/80 px-1.5 py-0.5 text-[10px] font-black text-white">{unreadCount}</span> : null}</button>
               <button type="button" onClick={() => setRightPanelTab('users')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'users' ? 'bg-cyan-300/16 text-cyan-50' : 'hover:bg-white/6'}`}>Users</button>
             </div>
           </div>
@@ -198,18 +266,27 @@ export function RoomPageView({
           {rightPanelTab === 'chat' ? (
           <div className="relative mt-4">
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-12 rounded-t-[1.2rem] bg-[linear-gradient(180deg,rgba(4,10,16,0.95),rgba(4,10,16,0.55),transparent)]" />
-            <div ref={chatScrollRef} className="chat-scrollbar max-h-[46rem] space-y-2 overflow-y-auto rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-3 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
-            {chatMessages.length > 0 ? (
-              chatMessages.slice(-18).map((message) => (
-                <div key={message.id} className="animate-chat-pop rounded-[1.1rem] border-l-2 border-cyan-300/60 bg-[linear-gradient(90deg,rgba(34,211,238,0.14),rgba(255,255,255,0.02))] px-3 py-2.5 shadow-[0_0_18px_rgba(34,211,238,0.08)]">
+            <div ref={chatScrollRef} className="chat-scrollbar max-h-[46rem] space-y-1.5 overflow-y-auto rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-2.5 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
+            {displayedMessages.length > 0 ? (
+              displayedMessages.map((message) => (
+                <div key={message.id}>
+                  {firstUnreadMessageId === message.id ? (
+                    <div className="chat-new-divider my-2 flex items-center gap-2 px-1">
+                      <span className="h-px flex-1 bg-gradient-to-r from-transparent via-fuchsia-300/60 to-fuchsia-300/15" />
+                      <span className="rounded-full border border-fuchsia-300/25 bg-fuchsia-300/10 px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.18em] text-fuchsia-50">Nouveaux messages</span>
+                      <span className="h-px flex-1 bg-gradient-to-l from-transparent via-fuchsia-300/60 to-fuchsia-300/15" />
+                    </div>
+                  ) : null}
+                <div className={`animate-chat-pop rounded-[1rem] border border-white/6 px-3 py-2 shadow-[0_0_18px_rgba(34,211,238,0.06)] ${message.userId === state.currentUser.id ? 'border-fuchsia-300/18 bg-[linear-gradient(90deg,rgba(217,70,239,0.14),rgba(255,255,255,0.02))]' : 'border-cyan-300/10 bg-[linear-gradient(90deg,rgba(34,211,238,0.12),rgba(255,255,255,0.02))]'}`}>
                   <div className="flex items-center justify-between gap-3">
-                    <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex min-w-0 items-center gap-2.5">
                       <AvatarDisplay avatar={message.authorAvatar} label={message.authorLabel} size="sm" />
-                      <p className="truncate text-sm font-semibold text-cyan-50/95">{message.authorLabel}</p>
+                      <p className="truncate text-[13px] font-semibold text-cyan-50/95">{message.authorLabel}</p>
                     </div>
                     <p className="text-[10px] uppercase tracking-[0.14em] text-cyan-100/40">{new Date(message.createdAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
-                  <p className="mt-1.5 text-sm leading-6 text-white/78">{message.content}</p>
+                  <p className="mt-1 text-[13px] leading-5 text-white/78">{message.content}</p>
+                </div>
                 </div>
               ))
             ) : (
@@ -240,10 +317,10 @@ export function RoomPageView({
           {chatComposer && state.currentUser.isLoggedIn && rightPanelTab === 'chat' ? (
             <>
               <div className="mt-4 space-y-3">
-                <textarea value={chatComposer.value} onChange={(event) => chatComposer.onChange(event.target.value)} placeholder="Balance une réaction sur le morceau..." rows={3} className="w-full resize-none rounded-[1.2rem] border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(0,0,0,0.28),rgba(34,211,238,0.05))] px-4 py-3 text-white outline-none shadow-[inset_0_0_20px_rgba(34,211,238,0.04)] focus:border-cyan-300/45" />
+                <textarea value={chatComposer.value} onChange={(event) => chatComposer.onChange(event.target.value)} placeholder="Balance une réaction sur le morceau..." rows={2} className="w-full resize-none rounded-[1.1rem] border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(0,0,0,0.28),rgba(34,211,238,0.05))] px-4 py-3 text-[13px] leading-5 text-white outline-none shadow-[inset_0_0_20px_rgba(34,211,238,0.04)] focus:border-cyan-300/45" />
                 {chatComposer.feedback?.tone === 'error' ? <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[chatComposer.feedback.tone]}`}>{chatComposer.feedback.text}</div> : null}
               </div>
-              <button type="button" onClick={chatComposer.onSubmit} disabled={chatComposer.submitting} className="mt-4 w-full rounded-full border border-cyan-300/20 bg-cyan-300/8 px-5 py-3 font-semibold text-cyan-50 transition hover:bg-cyan-300/12 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="button" onClick={chatComposer.onSubmit} disabled={chatComposer.submitting} className="mt-3 w-full rounded-full border border-cyan-300/20 bg-cyan-300/8 px-5 py-2.5 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-300/12 disabled:cursor-not-allowed disabled:opacity-60">
                 {chatComposer.submitting ? 'Envoi…' : 'Envoyer dans la room'}
               </button>
               {reactionControls ? (

@@ -77,3 +77,21 @@ a {
 .crowd-bob {
   animation: crowd-bob 2.6s ease-in-out infinite;
 }
+
+@keyframes reaction-rise {
+  0% {
+    opacity: 0;
+    transform: translateY(16px) scale(0.75);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-72px) scale(1.08);
+  }
+}
+
+.reaction-burst {
+  animation: reaction-rise 1.9s ease-out forwards;
+}
