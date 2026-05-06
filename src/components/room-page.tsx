@@ -120,33 +120,70 @@ export function RoomPageView({
         </div>
       </div>
 
-      <div className="rounded-[1.8rem] border border-fuchsia-400/12 bg-[linear-gradient(180deg,rgba(12,10,18,0.96),rgba(7,6,11,0.95))] p-3 shadow-[0_22px_70px_rgba(0,0,0,0.35)]">
-        <div className="mb-3 flex items-center justify-between gap-4">
-          <div>
-            <p className="text-[10px] uppercase tracking-[0.24em] text-fuchsia-200/72">Main stage</p>
-            <h3 className="mt-1 text-xl font-black text-white">Scène synchronisée</h3>
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+        <div className="rounded-[1.8rem] border border-fuchsia-400/12 bg-[linear-gradient(180deg,rgba(12,10,18,0.96),rgba(7,6,11,0.95))] p-3 shadow-[0_22px_70px_rgba(0,0,0,0.35)]">
+          <div className="mb-3 flex items-center justify-between gap-4">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.24em] text-fuchsia-200/72">Main stage</p>
+              <h3 className="mt-1 text-xl font-black text-white">Scène synchronisée</h3>
+            </div>
+            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/65">{currentTrack ? currentTrack.status : 'placeholder'}</span>
           </div>
-          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/65">{currentTrack ? currentTrack.status : 'placeholder'}</span>
+
+          {currentTrack ? (
+            <SyncScenePlayer
+              track={currentTrack}
+              playback={state.playback}
+              canControl={playerControls?.canControl ?? false}
+              members={state.members}
+              ownerLabel={state.room.ownerLabel}
+              onTogglePlayback={playerControls?.onTogglePlayback ?? (() => undefined)}
+              onNextTrack={playerControls?.onNextTrack ?? (() => undefined)}
+            />
+          ) : (
+            <div className="rounded-[1.6rem] border border-dashed border-gold/20 bg-black/30 p-6 text-white/68">
+              Aucun titre dans la queue pour l’instant. Ajoute un lien YouTube et on arrête enfin de regarder du vide.
+            </div>
+          )}
         </div>
 
-        {currentTrack ? (
-          <SyncScenePlayer
-            track={currentTrack}
-            playback={state.playback}
-            canControl={playerControls?.canControl ?? false}
-            members={state.members}
-            ownerLabel={state.room.ownerLabel}
-            onTogglePlayback={playerControls?.onTogglePlayback ?? (() => undefined)}
-            onNextTrack={playerControls?.onNextTrack ?? (() => undefined)}
-          />
-        ) : (
-          <div className="rounded-[1.6rem] border border-dashed border-gold/20 bg-black/30 p-6 text-white/68">
-            Aucun titre dans la queue pour l’instant. Ajoute un lien YouTube et on arrête enfin de regarder du vide.
+        <div className="rounded-[1.8rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(8,14,20,0.96),rgba(8,10,16,0.94))] p-4 xl:sticky xl:top-4">
+          <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-100/72">Chat live</p>
+          <h3 className="mt-1 text-lg font-black text-white">Le dancefloor parle</h3>
+          <div className="mt-4 max-h-[46rem] space-y-3 overflow-y-auto rounded-[1.2rem] border border-white/10 bg-black/30 p-3">
+            {chatMessages.length > 0 ? (
+              chatMessages.slice(-18).map((message) => (
+                <div key={message.id} className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <p className="text-sm font-semibold text-white/88">{message.authorLabel}</p>
+                    <p className="text-[11px] uppercase tracking-[0.16em] text-white/38">{new Date(message.createdAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</p>
+                  </div>
+                  <p className="mt-2 text-sm leading-6 text-white/72">{message.content}</p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/60">Pas encore de messages. Quelqu’un doit bien casser la glace.</div>
+            )}
           </div>
-        )}
+          {chatComposer && state.currentUser.isLoggedIn ? (
+            <>
+              <div className="mt-4 space-y-3">
+                <textarea value={chatComposer.value} onChange={(event) => chatComposer.onChange(event.target.value)} placeholder="Balance une réaction sur le morceau..." rows={4} className="w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-cyan-300/40" />
+                {chatComposer.feedback ? <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[chatComposer.feedback.tone]}`}>{chatComposer.feedback.text}</div> : null}
+              </div>
+              <button type="button" onClick={chatComposer.onSubmit} disabled={chatComposer.submitting} className="mt-4 w-full rounded-full border border-white/15 px-5 py-3 font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60">
+                {chatComposer.submitting ? 'Envoi…' : 'Envoyer dans la room'}
+              </button>
+            </>
+          ) : (
+            <div className="mt-4 rounded-[1.2rem] border border-dashed border-white/10 bg-black/30 p-4 text-white/68">
+              {preview ? 'Preview statique : le chat n’est pas branché hors backend.' : !state.currentUser.isLoggedIn ? 'Connecte-toi pour chatter avec la room.' : 'Le chat live attend son formulaire.'}
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)_280px]">
+      <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
         <aside className="space-y-5">
           <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(14,13,19,0.96),rgba(10,10,14,0.95))] p-5">
             <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Audience</p>
@@ -229,41 +266,6 @@ export function RoomPageView({
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(8,14,20,0.96),rgba(8,10,16,0.94))] p-6">
-          <p className="text-xs uppercase tracking-[0.24em] text-cyan-100/72">Chat live</p>
-          <h3 className="mt-3 text-2xl font-black text-white">Le dancefloor parle</h3>
-          <p className="mt-3 text-white/72">Petit chat temps réel pour réagir au set sans quitter la room.</p>
-          <div className="mt-5 max-h-[32rem] space-y-3 overflow-y-auto rounded-[1.5rem] border border-white/10 bg-black/30 p-3">
-            {chatMessages.length > 0 ? (
-              chatMessages.slice(-12).map((message) => (
-                <div key={message.id} className="rounded-2xl border border-white/8 bg-white/5 px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-white/88">{message.authorLabel}</p>
-                    <p className="text-[11px] uppercase tracking-[0.16em] text-white/38">{new Date(message.createdAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</p>
-                  </div>
-                  <p className="mt-2 text-sm leading-6 text-white/72">{message.content}</p>
-                </div>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/60">Pas encore de messages. Quelqu’un doit bien casser la glace.</div>
-            )}
-          </div>
-          {chatComposer && state.currentUser.isLoggedIn ? (
-            <>
-              <div className="mt-4 space-y-3">
-                <textarea value={chatComposer.value} onChange={(event) => chatComposer.onChange(event.target.value)} placeholder="Balance une réaction sur le morceau, un lien, une vanne, un skip bien senti…" rows={4} className="w-full resize-none rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-cyan-300/40" />
-                {chatComposer.feedback ? <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[chatComposer.feedback.tone]}`}>{chatComposer.feedback.text}</div> : null}
-              </div>
-              <button type="button" onClick={chatComposer.onSubmit} disabled={chatComposer.submitting} className="mt-4 rounded-full border border-white/15 px-5 py-3 font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-60">
-                {chatComposer.submitting ? 'Envoi…' : 'Envoyer dans la room'}
-              </button>
-            </>
-          ) : (
-            <div className="mt-4 rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/68">
-              {preview ? 'Preview statique : le chat n’est pas branché hors backend.' : !state.currentUser.isLoggedIn ? 'Connecte-toi pour chatter avec la room.' : 'Le chat live attend son formulaire.'}
-            </div>
-          )}
-        </div>
       </div>
     </section>
   );
