@@ -186,15 +186,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
       }
     }
 
-    const effectiveMute = globalAudioState.muted || globalAudioState.volume <= 0;
-    player.setVolume(effectiveMute ? 0 : globalAudioState.volume);
-    if (effectiveMute) {
-      player.mute();
-    } else if (audioUnlockedRef.current || globalAudioState.hasInteracted) {
-      player.unMute();
-    } else {
-      player.mute();
-    }
+    const localVolume = audioUnlockedRef.current || globalAudioState.hasInteracted ? (globalAudioState.muted ? 0 : globalAudioState.volume) : 0;
+    player.setVolume(localVolume);
   }
 
   function primeAudioAndPlay() {
@@ -204,13 +197,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     }
 
     audioUnlockedRef.current = true;
-    const effectiveMute = globalAudioState.muted || globalAudioState.volume <= 0;
-    player.setVolume(effectiveMute ? 0 : globalAudioState.volume);
-    if (effectiveMute) {
-      player.mute();
-    } else {
-      player.unMute();
-    }
+    const localVolume = globalAudioState.muted ? 0 : globalAudioState.volume;
+    player.setVolume(localVolume);
     player.playVideo();
     lastPlayAttemptRef.current = Date.now();
 
@@ -225,12 +213,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         return;
       }
 
-      currentPlayer.setVolume(effectiveMute ? 0 : globalAudioState.volume);
-      if (effectiveMute) {
-        currentPlayer.mute();
-      } else {
-        currentPlayer.unMute();
-      }
+      currentPlayer.setVolume(globalAudioState.muted ? 0 : globalAudioState.volume);
 
       if (playback?.state === 'playing') {
         currentPlayer.playVideo();
@@ -278,8 +261,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
             setPlayerReady(true);
             lastTrackLoadRef.current = Date.now();
             lastProgressAtRef.current = Date.now();
-            playerRef.current?.setVolume(globalAudioState.muted || globalAudioState.volume <= 0 ? 0 : globalAudioState.volume);
-            playerRef.current?.mute();
+            playerRef.current?.setVolume(0);
             syncPlayer('hard');
           },
           onStateChange: (event) => {
@@ -317,7 +299,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         playerRef.current?.pauseVideo();
       },
       stop: () => {
-        playerRef.current?.mute();
+        playerRef.current?.setVolume(0);
         playerRef.current?.pauseVideo();
         playerRef.current?.seekTo(0, true);
       },
@@ -325,16 +307,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         playerRef.current?.setVolume(volume);
       },
       setMuted: (muted) => {
-        if (muted) {
-          playerRef.current?.setVolume(0);
-          playerRef.current?.mute();
-          return;
-        }
-
-        if (audioUnlockedRef.current || globalAudioController.getSnapshot().hasInteracted) {
-          playerRef.current?.unMute();
-          playerRef.current?.setVolume(globalAudioController.getSnapshot().volume);
-        }
+        const canOutputAudio = audioUnlockedRef.current || globalAudioController.getSnapshot().hasInteracted;
+        playerRef.current?.setVolume(canOutputAudio ? (muted ? 0 : globalAudioController.getSnapshot().volume) : 0);
       },
     });
   }, [currentTrack]);
