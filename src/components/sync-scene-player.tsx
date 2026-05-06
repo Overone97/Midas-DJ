@@ -1,6 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { AvatarDisplay } from '@/components/avatar-display';
+import { SceneAudioControlBar } from '@/components/scene-audio-control-bar';
+import { globalAudioController, useGlobalAudioController } from '@/lib/audio-controller';
 import type { PlaybackPreview, QueueItemPreview, RoomMemberPreview } from '@/lib/rooms';
 
 declare global {
@@ -51,6 +54,7 @@ type ScenePlayerProps = {
   ownerLabel: string;
   onTogglePlayback: (nextState: 'playing' | 'paused', currentOffset: number) => void;
   onNextTrack: () => void;
+  onStopPlayback: () => void;
 };
 
 function getExpectedOffset(playback?: PlaybackPreview) {
@@ -71,55 +75,6 @@ function formatClock(value: number) {
   const minutes = Math.floor(safe / 60);
   const seconds = safe % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
-}
-
-function getInitials(label: string) {
-  return label
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((chunk) => chunk[0]?.toUpperCase() ?? '')
-    .join('');
-}
-
-function getAvatarPalette(seed: string) {
-  const palettes = [
-    {
-      aura: 'from-cyan-300/40 via-sky-400/10 to-transparent',
-      hair: 'bg-slate-950',
-      skin: 'bg-[#f3c6a6]',
-      body: 'bg-cyan-300',
-      accent: 'bg-cyan-100',
-      badge: 'border-cyan-300/30 bg-cyan-300/10 text-cyan-50',
-    },
-    {
-      aura: 'from-fuchsia-300/35 via-rose-400/12 to-transparent',
-      hair: 'bg-[#2b152a]',
-      skin: 'bg-[#d8a27b]',
-      body: 'bg-fuchsia-300',
-      accent: 'bg-rose-100',
-      badge: 'border-fuchsia-300/30 bg-fuchsia-300/10 text-fuchsia-50',
-    },
-    {
-      aura: 'from-amber-300/40 via-orange-300/12 to-transparent',
-      hair: 'bg-[#382314]',
-      skin: 'bg-[#f0be8f]',
-      body: 'bg-amber-300',
-      accent: 'bg-yellow-50',
-      badge: 'border-amber-300/30 bg-amber-300/10 text-amber-50',
-    },
-    {
-      aura: 'from-emerald-300/35 via-teal-300/12 to-transparent',
-      hair: 'bg-[#15352f]',
-      skin: 'bg-[#d9b18a]',
-      body: 'bg-emerald-300',
-      accent: 'bg-emerald-50',
-      badge: 'border-emerald-300/30 bg-emerald-300/10 text-emerald-50',
-    },
-  ];
-
-  const score = Array.from(seed).reduce((acc, char) => acc + char.charCodeAt(0), 0);
-  return palettes[score % palettes.length];
 }
 
 function ensureYouTubeApi() {
@@ -150,7 +105,7 @@ function ensureYouTubeApi() {
   });
 }
 
-export function SyncScenePlayer({ track, playback, canControl, members, ownerLabel, onTogglePlayback, onNextTrack }: ScenePlayerProps) {
+export function SyncScenePlayer({ track, playback, canControl, members, ownerLabel, onTogglePlayback, onNextTrack, onStopPlayback }: ScenePlayerProps) {
   const playerHostRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const readyRef = useRef(false);
@@ -167,8 +122,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const audioUnlockedRef = useRef(false);
   const [playerReady, setPlayerReady] = useState(false);
   const [liveOffset, setLiveOffset] = useState(0);
-  const [hasInteracted, setHasInteracted] = useState(false);
-  const [localVolume, setLocalVolume] = useState(80);
+  const { state: globalAudioState } = useGlobalAudioController();
 
   const currentTrack = track;
   const syncedMembers = members.filter((member) => member.online);
@@ -232,26 +186,27 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
       }
     }
 
-    player.setVolume(localVolume);
-    if (localVolume <= 0) {
+    const effectiveMute = globalAudioState.muted || globalAudioState.volume <= 0;
+    player.setVolume(effectiveMute ? 0 : globalAudioState.volume);
+    if (effectiveMute) {
       player.mute();
-    } else if (audioUnlockedRef.current || hasInteracted) {
+    } else if (audioUnlockedRef.current || globalAudioState.hasInteracted) {
       player.unMute();
     } else {
       player.mute();
     }
   }
 
-  function unlockLocalAudio(nextVolume = localVolume) {
+  function primeAudioAndPlay() {
     const player = playerRef.current;
     if (!player || !currentTrack) {
       return;
     }
 
     audioUnlockedRef.current = true;
-    setHasInteracted(true);
-    player.setVolume(nextVolume);
-    if (nextVolume <= 0) {
+    const effectiveMute = globalAudioState.muted || globalAudioState.volume <= 0;
+    player.setVolume(effectiveMute ? 0 : globalAudioState.volume);
+    if (effectiveMute) {
       player.mute();
     } else {
       player.unMute();
@@ -270,8 +225,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         return;
       }
 
-      currentPlayer.setVolume(nextVolume);
-      if (nextVolume <= 0) {
+      currentPlayer.setVolume(effectiveMute ? 0 : globalAudioState.volume);
+      if (effectiveMute) {
         currentPlayer.mute();
       } else {
         currentPlayer.unMute();
@@ -323,7 +278,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
             setPlayerReady(true);
             lastTrackLoadRef.current = Date.now();
             lastProgressAtRef.current = Date.now();
-            playerRef.current?.setVolume(localVolume);
+            playerRef.current?.setVolume(globalAudioState.muted || globalAudioState.volume <= 0 ? 0 : globalAudioState.volume);
             playerRef.current?.mute();
             syncPlayer('hard');
           },
@@ -348,7 +303,41 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     return () => {
       cancelled = true;
     };
-  }, [currentTrack, localVolume]);
+  }, [currentTrack, globalAudioState.muted, globalAudioState.volume]);
+
+  useEffect(() => {
+    return globalAudioController.registerSource(`youtube-scene-${currentTrack?.id ?? 'idle'}`, {
+      play: () => {
+        if (!currentTrack) {
+          return;
+        }
+        primeAudioAndPlay();
+      },
+      pause: () => {
+        playerRef.current?.pauseVideo();
+      },
+      stop: () => {
+        playerRef.current?.mute();
+        playerRef.current?.pauseVideo();
+        playerRef.current?.seekTo(0, true);
+      },
+      setVolume: (volume) => {
+        playerRef.current?.setVolume(volume);
+      },
+      setMuted: (muted) => {
+        if (muted) {
+          playerRef.current?.setVolume(0);
+          playerRef.current?.mute();
+          return;
+        }
+
+        if (audioUnlockedRef.current || globalAudioController.getSnapshot().hasInteracted) {
+          playerRef.current?.unMute();
+          playerRef.current?.setVolume(globalAudioController.getSnapshot().volume);
+        }
+      },
+    });
+  }, [currentTrack]);
 
   useEffect(() => {
     autoAdvanceTrackRef.current = null;
@@ -375,7 +364,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         followUpSyncRef.current = null;
       }
     };
-  }, [currentTrack, playback?.state, playback?.startedAt, playback?.offsetSeconds, hasInteracted, localVolume, playerReady]);
+  }, [currentTrack, playback?.state, playback?.startedAt, playback?.offsetSeconds, globalAudioState.hasInteracted, globalAudioState.muted, globalAudioState.volume, playerReady]);
 
   useEffect(() => {
     const timer = window.setInterval(() => {
@@ -426,8 +415,16 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
     return 'set terminé';
   }, [playback]);
 
+  useEffect(() => {
+    if (!playback) {
+      globalAudioController.setPlayback('paused');
+      return;
+    }
+
+    globalAudioController.setPlayback(playback.state === 'ended' ? 'stopped' : playback.state);
+  }, [playback]);
+
   const progressWidth = Math.min(100, ((liveOffset % 240) / 240) * 100);
-  const ownerPalette = getAvatarPalette(ownerLabel);
 
   return (
     <div className="overflow-hidden rounded-[2rem] border border-fuchsia-400/20 bg-[radial-gradient(circle_at_top,#fb718522,transparent_28%),radial-gradient(circle_at_15%_75%,#9333ea26,transparent_30%),radial-gradient(circle_at_85%_20%,#22d3ee22,transparent_28%),linear-gradient(180deg,#20112d,#09060f)] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
@@ -436,59 +433,15 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           <p className="text-[10px] uppercase tracking-[0.3em] text-gold/70">Main stage</p>
           <h4 className="mt-1 line-clamp-2 text-xl font-black text-white">{currentTrack?.title ?? 'Aucun titre chargé'}</h4>
         </div>
-        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
-          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(7,10,18,0.96),rgba(11,15,23,0.92))] px-2.5 py-2 text-white/78 shadow-[0_12px_35px_rgba(0,0,0,0.2)]">
-            <button
-              type="button"
-              onClick={() => onTogglePlayback(playback?.state === 'playing' ? 'paused' : 'playing', liveOffset)}
-              disabled={!currentTrack || !canControl}
-              className="shrink-0 rounded-full bg-gold px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              {playback?.state === 'playing' ? 'Stop' : 'Play'}
-            </button>
-            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-white/88">{currentTrack?.title ?? 'Aucun titre chargé'}</span>
-            <div className="flex shrink-0 items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2 py-1">
-              <span className="text-[10px] font-bold text-cyan-50">🔊</span>
-              <input
-                type="range"
-                min={0}
-                max={100}
-                step={1}
-                value={localVolume}
-                onPointerDown={() => {
-                  if (currentTrack) {
-                    unlockLocalAudio(localVolume);
-                  }
-                }}
-                onPointerUp={() => {
-                  if (currentTrack) {
-                    unlockLocalAudio(localVolume);
-                  }
-                }}
-                onTouchStart={() => {
-                  if (currentTrack) {
-                    unlockLocalAudio(localVolume);
-                  }
-                }}
-                onChange={(event) => {
-                  const nextVolume = Number(event.target.value);
-                  setLocalVolume(nextVolume);
-                  if (currentTrack) {
-                    unlockLocalAudio(nextVolume);
-                  }
-                }}
-                onInput={(event) => {
-                  const nextVolume = Number((event.target as HTMLInputElement).value);
-                  setLocalVolume(nextVolume);
-                }}
-                disabled={!currentTrack}
-                className="h-2.5 w-20 cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
-              />
-            </div>
-          </div>
-          <span className="shrink-0 rounded-full border border-gold/20 bg-gold/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-gold">{stageBadge}</span>
-        </div>
+        <span className="shrink-0 rounded-full border border-gold/20 bg-gold/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-gold">{stageBadge}</span>
       </div>
+
+      <SceneAudioControlBar
+        canControl={canControl}
+        hasTrack={Boolean(currentTrack)}
+        onPlay={() => onTogglePlayback('playing', playback?.state === 'paused' ? liveOffset : getExpectedOffset(playback))}
+        onStop={onStopPlayback}
+      />
 
       <div className="relative overflow-hidden rounded-[1.9rem] border border-white/10 bg-[linear-gradient(180deg,#140d1d,#05040a)]">
           <div className="pointer-events-none absolute inset-0 opacity-90">
@@ -527,15 +480,9 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                   </div>
 
                   <div className="absolute left-1/2 bottom-[11rem] z-[6] flex -translate-x-1/2 flex-col items-center">
-                    <div className={`absolute -top-12 h-32 w-32 rounded-full bg-gradient-to-b ${ownerPalette.aura} blur-2xl`} />
-                    <div className="relative h-44 w-32">
-                      <div className={`absolute left-1/2 top-4 h-12 w-12 -translate-x-1/2 rounded-full border border-white/15 ${ownerPalette.skin}`} />
-                      <div className={`absolute left-1/2 top-2 h-6 w-14 -translate-x-1/2 rounded-t-full ${ownerPalette.hair}`} />
-                      <div className={`absolute bottom-6 left-1/2 h-24 w-28 -translate-x-1/2 rounded-[1.8rem_1.8rem_1rem_1rem] ${ownerPalette.body} shadow-[0_0_25px_rgba(255,255,255,0.12)]`} />
-                      <div className={`absolute bottom-14 left-1 h-4 w-10 rounded-full ${ownerPalette.accent} opacity-80`} />
-                      <div className={`absolute bottom-14 right-1 h-4 w-10 rounded-full ${ownerPalette.accent} opacity-80`} />
-                    </div>
-                    <span className={`mt-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] ${ownerPalette.badge}`}>DJ booth</span>
+                    <div className="absolute -top-8 h-28 w-28 rounded-full bg-fuchsia-400/18 blur-2xl" />
+                    <AvatarDisplay avatar={members.find((member) => member.role === 'owner')?.avatar} label={ownerLabel} size="lg" badge="DJ" />
+                    <span className="mt-3 rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-fuchsia-50">DJ booth</span>
                   </div>
 
                   <div className="absolute inset-x-0 bottom-[18.2rem] z-[7] px-4">
@@ -561,8 +508,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                           <div key={member.id} className="flex min-w-[5.6rem] flex-col items-center justify-end">
                             <div className={`mb-1 h-2 w-2 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.7)]' : 'bg-white/20'}`} />
                             <div className={`relative h-[6.2rem] w-[4.8rem] rounded-[1.2rem_1.2rem_0.7rem_0.7rem] border ${member.online ? 'border-cyan-300/25 bg-cyan-300/10' : 'border-white/10 bg-white/5'}`}>
-                              <div className={`absolute left-1/2 top-0 flex h-9 w-9 -translate-x-1/2 -translate-y-3 items-center justify-center rounded-full border border-white/10 text-[10px] font-black ${member.online ? 'bg-cyan-300 text-black' : 'bg-white/10 text-white/70'}`}>
-                                {getInitials(member.label) || '??'}
+                              <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-5">
+                                <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" />
                               </div>
                             </div>
                             <p className="mt-2 max-w-[4.8rem] truncate text-center text-[11px] font-semibold text-white/82">{member.label}</p>

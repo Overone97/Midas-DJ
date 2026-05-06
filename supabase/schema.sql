@@ -40,6 +40,10 @@ create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   username text not null unique,
   avatar_url text,
+  avatar_species text not null default 'bunny' check (avatar_species in ('bunny', 'panda', 'bear', 'dragon', 'cat')),
+  avatar_accessories text[] not null default '{headphones}',
+  avatar_outfit_color text not null default 'purple' check (avatar_outfit_color in ('pink', 'gold', 'purple', 'cyan', 'emerald')),
+  avatar_badge text not null default 'none' check (avatar_badge in ('none', 'vip', 'mod', 'crown')),
   bio text,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())
@@ -355,3 +359,34 @@ on public.moderation_events
 for select
 to authenticated
 using (true);
+
+do $$
+begin
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'messages'
+  ) then
+    execute 'alter publication supabase_realtime add table public.messages';
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'queue_items'
+  ) then
+    execute 'alter publication supabase_realtime add table public.queue_items';
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'playback_state'
+  ) then
+    execute 'alter publication supabase_realtime add table public.playback_state';
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'room_members'
+  ) then
+    execute 'alter publication supabase_realtime add table public.room_members';
+  end if;
+end $$;

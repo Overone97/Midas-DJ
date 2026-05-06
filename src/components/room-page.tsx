@@ -1,7 +1,9 @@
 'use client';
 
 import Link from 'next/link';
+import { AvatarDisplay } from '@/components/avatar-display';
 import { SyncScenePlayer } from '@/components/sync-scene-player';
+import type { AvatarConfig } from '@/lib/avatar';
 import type { RoomPageState, RoomRole } from '@/lib/rooms';
 
 type QueueComposerProps = {
@@ -21,6 +23,7 @@ type PlayerControlsProps = {
   canControl: boolean;
   onTogglePlayback: (nextState: 'playing' | 'paused', currentOffset: number) => void;
   onNextTrack: () => void;
+  onStopPlayback: () => void;
 };
 
 type ChatComposerProps = {
@@ -32,6 +35,16 @@ type ChatComposerProps = {
   } | null;
   onChange: (value: string) => void;
   onSubmit: () => void;
+};
+
+type AvatarControlsProps = {
+  open: boolean;
+  submitting: boolean;
+  draft: AvatarConfig;
+  onOpen: () => void;
+  onClose: () => void;
+  onChange: (avatar: AvatarConfig) => void;
+  onSave: () => void;
 };
 
 const roleLabels: Record<RoomRole, string> = {
@@ -69,11 +82,13 @@ export function RoomPageView({
   queueComposer,
   playerControls,
   chatComposer,
+  avatarControls,
 }: {
   state: RoomPageState;
   queueComposer?: QueueComposerProps;
   playerControls?: PlayerControlsProps;
   chatComposer?: ChatComposerProps;
+  avatarControls?: AvatarControlsProps;
 }) {
   const isPrivate = state.room.type === 'private';
   const denied = state.status === 'forbidden';
@@ -139,6 +154,7 @@ export function RoomPageView({
               ownerLabel={state.room.ownerLabel}
               onTogglePlayback={playerControls?.onTogglePlayback ?? (() => undefined)}
               onNextTrack={playerControls?.onNextTrack ?? (() => undefined)}
+              onStopPlayback={playerControls?.onStopPlayback ?? (() => undefined)}
             />
           ) : (
             <div className="rounded-[1.6rem] border border-dashed border-gold/20 bg-black/30 p-6 text-white/68">
@@ -155,7 +171,10 @@ export function RoomPageView({
               chatMessages.slice(-18).map((message) => (
                 <div key={message.id} className="rounded-[1.1rem] border-l-2 border-cyan-300/60 bg-[linear-gradient(90deg,rgba(34,211,238,0.14),rgba(255,255,255,0.02))] px-3 py-2.5 shadow-[0_0_18px_rgba(34,211,238,0.08)]">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-semibold text-cyan-50/95">{message.authorLabel}</p>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <AvatarDisplay avatar={message.authorAvatar} label={message.authorLabel} size="sm" />
+                      <p className="truncate text-sm font-semibold text-cyan-50/95">{message.authorLabel}</p>
+                    </div>
                     <p className="text-[10px] uppercase tracking-[0.14em] text-cyan-100/40">{new Date(message.createdAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
                   <p className="mt-1.5 text-sm leading-6 text-white/78">{message.content}</p>
@@ -195,6 +214,7 @@ export function RoomPageView({
                   <div key={member.id} className="flex items-center justify-between rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-3">
                     <div className="flex min-w-0 items-center gap-3">
                       <span className={`h-2.5 w-2.5 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.9)]' : 'bg-white/20'}`} />
+                      <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" />
                       <span className="truncate font-medium text-white/88">{member.label}</span>
                     </div>
                     <span className={`rounded-full border px-3 py-1 text-xs ${roleAccent[member.role]}`}>{roleLabels[member.role]}</span>
@@ -211,6 +231,7 @@ export function RoomPageView({
             <div className="mt-4 flex flex-wrap gap-3">
               <Link href="/rooms" className="rounded-full bg-gold px-4 py-2 font-semibold text-night">Retour au lobby</Link>
               {!state.currentUser.isLoggedIn ? <Link href="/login" className="rounded-full border border-white/15 px-4 py-2 font-semibold text-white/85">Se connecter</Link> : null}
+              {state.currentUser.isLoggedIn && avatarControls ? <button type="button" onClick={avatarControls.onOpen} className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 font-semibold text-cyan-50">Avatar lab</button> : null}
               {denied ? <Link href="/rooms" className="rounded-full border border-white/15 px-4 py-2 font-semibold text-white/85">Demander un autre accès</Link> : null}
               {missing ? <Link href="/rooms" className="rounded-full border border-white/15 px-4 py-2 font-semibold text-white/85">Explorer les rooms visibles</Link> : null}
             </div>
@@ -233,7 +254,10 @@ export function RoomPageView({
                         <span className="rounded-full border border-gold/15 bg-gold/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-gold/85">{item.status}</span>
                       </div>
                       <p className="mt-2 truncate font-semibold text-white/88">{item.title}</p>
-                      <p className="mt-1 text-xs text-white/55">Ajouté par {item.addedByLabel} · {formatDuration(item.durationSeconds)}</p>
+                      <div className="mt-2 flex items-center gap-2 text-xs text-white/55">
+                        <AvatarDisplay avatar={item.addedByAvatar} label={item.addedByLabel} size="sm" />
+                        <p>Ajouté par {item.addedByLabel} · {formatDuration(item.durationSeconds)}</p>
+                      </div>
                     </div>
                   </div>
                 ))

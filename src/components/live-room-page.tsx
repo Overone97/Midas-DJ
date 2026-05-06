@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { AvatarCustomizer } from '@/components/avatar-customizer';
 import { RoomPageView } from '@/components/room-page';
+import { DEFAULT_AVATAR, loadStoredAvatar, normalizeAvatar, saveStoredAvatar, type AvatarConfig } from '@/lib/avatar';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { ChatMessagePreview, PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomPageState, RoomRole } from '@/lib/rooms';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl } from '@/lib/youtube';
@@ -32,6 +34,15 @@ type RoomRow = {
   owner_id: string;
 };
 
+type AvatarProfileRow = {
+  id?: string;
+  username?: string | null;
+  avatar_species?: string | null;
+  avatar_accessories?: string[] | null;
+  avatar_outfit_color?: string | null;
+  avatar_badge?: string | null;
+};
+
 type QueueRow = {
   id: string;
   youtube_video_id: string;
@@ -41,7 +52,7 @@ type QueueRow = {
   position: number;
   status: 'queued' | 'playing' | 'played' | 'skipped';
   added_by: string;
-  profiles?: { username?: string | null } | { username?: string | null }[] | null;
+  profiles?: AvatarProfileRow | AvatarProfileRow[] | null;
 };
 
 type MembershipRow = {
@@ -50,7 +61,7 @@ type MembershipRow = {
 
 type MemberRow = {
   role: 'owner' | 'mod' | 'member';
-  profiles?: { id?: string; username?: string | null } | { id?: string; username?: string | null }[] | null;
+  profiles?: AvatarProfileRow | AvatarProfileRow[] | null;
 };
 
 type PlaybackRow = {
@@ -67,7 +78,7 @@ type MessageRow = {
   content: string;
   created_at: string;
   user_id: string;
-  profiles?: { username?: string | null } | { username?: string | null }[] | null;
+  profiles?: AvatarProfileRow | AvatarProfileRow[] | null;
 };
 
 function flattenPresence(state: Record<string, PresenceMeta[] | undefined>) {
@@ -86,11 +97,21 @@ function dedupeMembers(members: RoomMemberPreview[]) {
 }
 
 function labelFromProfile(
-  profile: { username?: string | null; id?: string } | { username?: string | null; id?: string }[] | null | undefined,
+  profile: AvatarProfileRow | AvatarProfileRow[] | null | undefined,
   fallback: string,
 ) {
   const resolved = Array.isArray(profile) ? profile[0] : profile;
   return resolved?.username?.trim() || fallback;
+}
+
+function avatarFromProfile(profile: AvatarProfileRow | AvatarProfileRow[] | null | undefined): AvatarConfig {
+  const resolved = Array.isArray(profile) ? profile[0] : profile;
+  return normalizeAvatar({
+    species: resolved?.avatar_species as AvatarConfig['species'] | undefined,
+    accessories: resolved?.avatar_accessories as AvatarConfig['accessories'] | undefined,
+    outfitColor: resolved?.avatar_outfit_color as AvatarConfig['outfitColor'] | undefined,
+    badge: resolved?.avatar_badge as AvatarConfig['badge'] | undefined,
+  });
 }
 
 function mapQueueRows(rows: QueueRow[]): QueueItemPreview[] {
@@ -103,6 +124,7 @@ function mapQueueRows(rows: QueueRow[]): QueueItemPreview[] {
     position: item.position ?? index + 1,
     status: item.status,
     addedByLabel: labelFromProfile(item.profiles, `Member ${index + 1}`),
+    addedByAvatar: avatarFromProfile(item.profiles),
   }));
 }
 
@@ -118,6 +140,7 @@ function mapMemberRows(rows: MemberRow[]) {
       label: labelFromProfile(profile, `Member ${index + 1}`),
       role: entry.role,
       online: false,
+      avatar: avatarFromProfile(profile),
     });
     return acc;
   }, []);
@@ -145,6 +168,7 @@ function mapMessageRows(rows: MessageRow[]): ChatMessagePreview[] {
     createdAt: message.created_at,
     userId: message.user_id,
     authorLabel: labelFromProfile(message.profiles, `Listener ${index + 1}`),
+    authorAvatar: avatarFromProfile(message.profiles),
   }));
 }
 
@@ -170,9 +194,13 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   const [chatMessage, setChatMessage] = useState('');
   const [chatSubmitting, setChatSubmitting] = useState(false);
   const [chatFeedback, setChatFeedback] = useState<ChatFeedback | null>(null);
+  const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
+  const [avatarSubmitting, setAvatarSubmitting] = useState(false);
+  const [avatarDraft, setAvatarDraft] = useState<AvatarConfig>(initialState.currentUser.avatar ?? DEFAULT_AVATAR);
 
   useEffect(() => {
     setState(initialState);
+    setAvatarDraft(initialState.currentUser.avatar ?? DEFAULT_AVATAR);
   }, [initialState]);
 
   useEffect(() => {
@@ -235,12 +263,23 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         }
       }
 
-      const [{ data: ownerProfile }, { data: membersData }, { data: queueItemsData }, { data: playbackData }, { data: messagesData }] = await Promise.all([
-        supabase.from('profiles').select('username').eq('id', room.owner_id).maybeSingle(),
-        supabase.from('room_members').select('role, profiles!room_members_user_id_fkey(id, username)').eq('room_id', room.id).limit(12),
+      const [{ data: viewerProfile }, { data: ownerProfile }, { data: membersData }, { data: queueItemsData }, { data: playbackData }, { data: messagesData }] = await Promise.all([
+        user
+          ? supabase
+              .from('profiles')
+              .select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge')
+              .eq('id', user.id)
+              .maybeSingle()
+          : Promise.resolve({ data: null, error: null }),
+        supabase.from('profiles').select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge').eq('id', room.owner_id).maybeSingle(),
+        supabase
+          .from('room_members')
+          .select('role, profiles!room_members_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
+          .eq('room_id', room.id)
+          .limit(12),
         supabase
           .from('queue_items')
-          .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(username)')
+          .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
           .eq('room_id', room.id)
           .in('status', ['queued', 'playing'])
           .order('position', { ascending: true })
@@ -252,7 +291,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           .maybeSingle(),
         supabase
           .from('messages')
-          .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(username)')
+          .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
           .eq('room_id', room.id)
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
@@ -276,17 +315,26 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           slug: room.slug,
           type: room.type,
           description: room.description ?? 'La room est prête côté backend. La scène sync tient maintenant debout.',
-          ownerLabel: labelFromProfile(ownerProfile, `Owner ${room.owner_id.slice(0, 8)}`),
+          ownerLabel: labelFromProfile(ownerProfile as AvatarProfileRow | null, `Owner ${room.owner_id.slice(0, 8)}`),
           ownerId: room.owner_id,
           queueDepth: queueItems.length,
         },
-        currentUser: { id: user?.id, isLoggedIn: Boolean(user), role, email: user?.email },
+        currentUser: {
+          id: user?.id,
+          isLoggedIn: Boolean(user),
+          role,
+          email: user?.email,
+          label: labelFromProfile(viewerProfile as AvatarProfileRow | null, user?.email?.split('@')[0] ?? 'Guest listener'),
+          avatar: viewerProfile ? avatarFromProfile(viewerProfile as AvatarProfileRow | null) : normalizeAvatar(loadStoredAvatar(user?.id) ?? DEFAULT_AVATAR),
+        },
         members: mapMemberRows((membersData as MemberRow[]) ?? []),
         queue: { items: queueItems },
         playback: mapPlaybackRow(playbackData as PlaybackRow | null),
         chat: { messages: mapMessageRows((messagesData as MessageRow[]) ?? []).reverse() },
         presence: { enabled: true, connected: false, onlineCount: 0 },
       });
+
+      setAvatarDraft(viewerProfile ? avatarFromProfile(viewerProfile as AvatarProfileRow | null) : normalizeAvatar(loadStoredAvatar(user?.id) ?? DEFAULT_AVATAR));
     }
 
     void hydrateRoom();
@@ -331,6 +379,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
             label: meta.label?.trim() || `Listener ${index + 1}`,
             role: meta.role === 'owner' || meta.role === 'mod' || meta.role === 'member' ? meta.role : 'visitor',
             online: true,
+            avatar: current.members.find((member) => member.id === userId)?.avatar ?? DEFAULT_AVATAR,
           })) satisfies RoomMemberPreview[];
 
         return {
@@ -378,14 +427,18 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
     const roomId = state.room.id;
 
-    async function refreshQueue() {
-      const { data, error } = await supabase
+    async function fetchQueueRows() {
+      return supabase
         .from('queue_items')
-        .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(username)')
+        .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
         .eq('room_id', roomId)
         .in('status', ['queued', 'playing'])
         .order('position', { ascending: true })
         .limit(20);
+    }
+
+    async function refreshQueue() {
+      const { data, error } = await fetchQueueRows();
 
       if (error) {
         setQueueFeedback((current) => current ?? { tone: 'error', text: error.message });
@@ -414,14 +467,18 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       setState((current) => ({ ...current, playback: mapPlaybackRow(data as PlaybackRow | null) }));
     }
 
-    async function refreshMessages() {
-      const { data, error } = await supabase
+    async function fetchMessages() {
+      return supabase
         .from('messages')
-        .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(username)')
+        .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
         .eq('room_id', roomId)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
         .limit(30);
+    }
+
+    async function refreshMessages() {
+      const { data, error } = await fetchMessages();
 
       if (error) {
         setChatFeedback((current) => current ?? { tone: 'error', text: error.message });
@@ -436,7 +493,13 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
     const queueChannel = supabase
       .channel(`room-queue:${roomId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_items', filter: `room_id=eq.${roomId}` }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_items', filter: `room_id=eq.${roomId}` }, (payload: { eventType: 'INSERT' | 'UPDATE' | 'DELETE'; old: Record<string, unknown> }) => {
+        if (payload.eventType === 'DELETE') {
+          setState((current) => ({
+            ...current,
+            queue: { items: (current.queue?.items ?? []).filter((item) => item.id !== String(payload.old.id)) },
+          }));
+        }
         void refreshQueue();
       })
       .subscribe();
@@ -450,8 +513,59 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
     const messagesChannel = supabase
       .channel(`room-messages:${roomId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` }, () => {
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'messages', filter: `room_id=eq.${roomId}` }, async (payload: { eventType: 'INSERT' | 'UPDATE' | 'DELETE'; new: Record<string, unknown>; old: Record<string, unknown> }) => {
+        if (payload.eventType === 'INSERT') {
+          const inserted = payload.new as { id: string; content: string; created_at: string; user_id: string };
+          const { data: profileData } = await supabase
+            .from('profiles')
+            .select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge')
+            .eq('id', inserted.user_id)
+            .maybeSingle();
+
+          const nextMessage: ChatMessagePreview = {
+            id: inserted.id,
+            content: inserted.content,
+            createdAt: inserted.created_at,
+            userId: inserted.user_id,
+            authorLabel: labelFromProfile(profileData as AvatarProfileRow | null, 'Listener'),
+            authorAvatar: avatarFromProfile(profileData as AvatarProfileRow | null),
+          };
+
+          setState((current) => ({
+            ...current,
+            chat: { messages: [...(current.chat?.messages ?? []).filter((message) => message.id !== nextMessage.id), nextMessage].slice(-30) },
+          }));
+          return;
+        }
+
+        if (payload.eventType === 'DELETE') {
+          setState((current) => ({
+            ...current,
+            chat: { messages: (current.chat?.messages ?? []).filter((message) => message.id !== String(payload.old.id)) },
+          }));
+          return;
+        }
+
         void refreshMessages();
+      })
+      .subscribe();
+
+    const membersChannel = supabase
+      .channel(`room-members:${roomId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_members', filter: `room_id=eq.${roomId}` }, async () => {
+        const { data } = await supabase
+          .from('room_members')
+          .select('role, profiles!room_members_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
+          .eq('room_id', roomId)
+          .limit(12);
+
+        setState((current) => ({
+          ...current,
+          members: mapMemberRows((data as MemberRow[]) ?? []).map((member) => ({
+            ...member,
+            online: current.members.find((entry) => entry.id === member.id)?.online ?? false,
+          })),
+        }));
       })
       .subscribe();
 
@@ -463,8 +577,13 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       void supabase.removeChannel(queueChannel);
       void supabase.removeChannel(playbackChannel);
       void supabase.removeChannel(messagesChannel);
+      void supabase.removeChannel(membersChannel);
     };
   }, [state.envReady, state.room.id]);
+
+  useEffect(() => {
+    setAvatarDraft(state.currentUser.avatar ?? DEFAULT_AVATAR);
+  }, [state.currentUser.avatar]);
 
   async function ensurePlaybackStateForFirstTrack(newQueueItemId: string) {
     const supabase = getSupabaseBrowserClient();
@@ -627,6 +746,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
               createdAt: new Date().toISOString(),
               userId: user.id,
               authorLabel: optimisticLabel,
+              authorAvatar: state.currentUser.avatar ?? DEFAULT_AVATAR,
             },
           ],
         },
@@ -715,6 +835,68 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       .eq('dj_user_id', currentPlayback.djUserId ?? '');
   }
 
+  async function handleStopPlayback() {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase || !state.room.id || !state.playback) {
+      return;
+    }
+
+    await supabase
+      .from('playback_state')
+      .update({ state: 'paused', started_at: null, offset_seconds: 0 })
+      .eq('room_id', state.room.id)
+      .eq('dj_user_id', state.playback.djUserId ?? '');
+  }
+
+  async function handleAvatarSave() {
+    const supabase = getSupabaseBrowserClient();
+    const userId = state.currentUser.id;
+    const nextAvatar = normalizeAvatar(avatarDraft);
+
+    saveStoredAvatar(nextAvatar, userId);
+    setAvatarSubmitting(true);
+
+    try {
+      if (supabase && userId) {
+        const { error } = await supabase
+          .from('profiles')
+          .update({
+            avatar_species: nextAvatar.species,
+            avatar_accessories: nextAvatar.accessories,
+            avatar_outfit_color: nextAvatar.outfitColor,
+            avatar_badge: nextAvatar.badge,
+          })
+          .eq('id', userId);
+
+        if (error) {
+          throw error;
+        }
+      }
+
+      setState((current) => ({
+        ...current,
+        currentUser: { ...current.currentUser, avatar: nextAvatar },
+        members: current.members.map((member) => (member.id === userId ? { ...member, avatar: nextAvatar } : member)),
+        chat: current.chat
+          ? {
+              messages: current.chat.messages.map((message) => (message.userId === userId ? { ...message, authorAvatar: nextAvatar } : message)),
+            }
+          : undefined,
+        queue: current.queue
+          ? {
+              items: current.queue.items.map((item) =>
+                item.addedByLabel === current.currentUser.label ? { ...item, addedByAvatar: nextAvatar } : item,
+              ),
+            }
+          : undefined,
+      }));
+
+      setAvatarEditorOpen(false);
+    } finally {
+      setAvatarSubmitting(false);
+    }
+  }
+
   const hydratedState = useMemo<RoomPageState>(
     () => ({
       ...state,
@@ -735,33 +917,53 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   const canControlPlayback = hydratedState.status === 'live' && hydratedState.currentUser.role === 'owner';
 
   return (
-    <RoomPageView
-      state={hydratedState}
-      playerControls={{
-        canControl: canControlPlayback,
-        onTogglePlayback: (nextState, currentOffset) => void handleTogglePlayback(nextState, currentOffset),
-        onNextTrack: () => void handleNextTrack(),
-      }}
-      queueComposer={
-        canComposeQueue
-          ? {
-              url: queueUrl,
-              title: queueTitle,
-              submitting: queueSubmitting,
-              feedback: queueFeedback,
-              onUrlChange: setQueueUrl,
-              onTitleChange: setQueueTitle,
-              onSubmit: () => void handleQueueSubmit(),
-            }
-          : undefined
-      }
-      chatComposer={{
-        value: chatMessage,
-        submitting: chatSubmitting,
-        feedback: chatFeedback,
-        onChange: setChatMessage,
-        onSubmit: () => void handleChatSubmit(),
-      }}
-    />
+    <>
+      <RoomPageView
+        state={hydratedState}
+        playerControls={{
+          canControl: canControlPlayback,
+          onTogglePlayback: (nextState, currentOffset) => void handleTogglePlayback(nextState, currentOffset),
+          onNextTrack: () => void handleNextTrack(),
+          onStopPlayback: () => void handleStopPlayback(),
+        }}
+        queueComposer={
+          canComposeQueue
+            ? {
+                url: queueUrl,
+                title: queueTitle,
+                submitting: queueSubmitting,
+                feedback: queueFeedback,
+                onUrlChange: setQueueUrl,
+                onTitleChange: setQueueTitle,
+                onSubmit: () => void handleQueueSubmit(),
+              }
+            : undefined
+        }
+        chatComposer={{
+          value: chatMessage,
+          submitting: chatSubmitting,
+          feedback: chatFeedback,
+          onChange: setChatMessage,
+          onSubmit: () => void handleChatSubmit(),
+        }}
+        avatarControls={{
+          open: avatarEditorOpen,
+          submitting: avatarSubmitting,
+          draft: avatarDraft,
+          onOpen: () => setAvatarEditorOpen(true),
+          onClose: () => setAvatarEditorOpen(false),
+          onChange: setAvatarDraft,
+          onSave: () => void handleAvatarSave(),
+        }}
+      />
+      <AvatarCustomizer
+        open={avatarEditorOpen}
+        value={avatarDraft}
+        submitting={avatarSubmitting}
+        onClose={() => setAvatarEditorOpen(false)}
+        onChange={setAvatarDraft}
+        onSave={() => void handleAvatarSave()}
+      />
+    </>
   );
 }
