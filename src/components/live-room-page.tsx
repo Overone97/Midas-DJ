@@ -811,11 +811,28 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     const nextTrack = queueItems.find((item) => item.position > (currentTrack?.position ?? 0));
 
     if (!nextTrack) {
+      if (currentTrack) {
+        await supabase.from('queue_items').update({ status: 'played' }).eq('id', currentTrack.id);
+      }
       await supabase
         .from('playback_state')
-        .update({ state: 'ended', started_at: null, offset_seconds: 0 })
+        .update({ current_queue_item_id: null, state: 'paused', started_at: null, offset_seconds: 0 })
         .eq('room_id', roomId)
         .eq('dj_user_id', currentPlayback.djUserId ?? '');
+
+      setState((current) => ({
+        ...current,
+        queue: { items: (current.queue?.items ?? []).filter((item) => item.id !== currentTrack?.id) },
+        playback: current.playback
+          ? {
+              ...current.playback,
+              currentQueueItemId: null,
+              state: 'paused',
+              startedAt: null,
+              offsetSeconds: 0,
+            }
+          : current.playback,
+      }));
       return;
     }
 
@@ -833,6 +850,20 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       })
       .eq('room_id', roomId)
       .eq('dj_user_id', currentPlayback.djUserId ?? '');
+
+    setState((current) => ({
+      ...current,
+      queue: { items: (current.queue?.items ?? []).filter((item) => item.id !== currentTrack?.id) },
+      playback: current.playback
+        ? {
+            ...current.playback,
+            currentQueueItemId: nextTrack.id,
+            state: 'playing',
+            startedAt: new Date().toISOString(),
+            offsetSeconds: 0,
+          }
+        : current.playback,
+    }));
   }
 
   async function handleStopPlayback() {

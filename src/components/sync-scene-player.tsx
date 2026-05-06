@@ -440,6 +440,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         canControl={canControl}
         hasTrack={Boolean(currentTrack)}
         onPlay={() => onTogglePlayback('playing', playback?.state === 'paused' ? liveOffset : getExpectedOffset(playback))}
+        onNext={onNextTrack}
         onStop={onStopPlayback}
       />
 

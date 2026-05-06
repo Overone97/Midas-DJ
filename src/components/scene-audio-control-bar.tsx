@@ -6,11 +6,13 @@ export function SceneAudioControlBar({
   canControl,
   hasTrack,
   onPlay,
+  onNext,
   onStop,
 }: {
   canControl: boolean;
   hasTrack: boolean;
   onPlay: () => void;
+  onNext: () => void;
   onStop: () => void;
 }) {
   const { state, playAll, stopAll, toggleMute, setVolume } = useGlobalAudioController();
@@ -44,6 +46,18 @@ export function SceneAudioControlBar({
           className="rounded-full border border-gold/20 bg-gold/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-gold transition hover:bg-gold/16 disabled:cursor-not-allowed disabled:opacity-50"
         >
           Stop
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            if (canControl) {
+              onNext();
+            }
+          }}
+          disabled={disabled || !canControl}
+          className="rounded-full border border-emerald-300/20 bg-emerald-300/10 px-4 py-2 text-xs font-black uppercase tracking-[0.16em] text-emerald-50 transition hover:bg-emerald-300/16 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          Next
         </button>
         <button
           type="button"
