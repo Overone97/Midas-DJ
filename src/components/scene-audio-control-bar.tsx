@@ -15,7 +15,7 @@ export function SceneAudioControlBar({
   onNext: () => void;
   onStop: () => void;
 }) {
-  const { state, playAll, stopAll, toggleMute, setVolume } = useGlobalAudioController();
+  const { state, playAll, stopAll, toggleMute } = useGlobalAudioController();
   const disabled = !hasTrack;
 
   return (
@@ -72,19 +72,11 @@ export function SceneAudioControlBar({
           {state.muted || state.volume <= 0 ? 'Unmute' : 'Mute'}
         </button>
 
-        <div className="ml-auto flex min-w-[15rem] flex-1 items-center gap-3 rounded-full border border-cyan-300/15 bg-cyan-300/8 px-4 py-2 text-cyan-50">
-          <span className="text-[10px] font-black uppercase tracking-[0.18em]">Vol</span>
-          <input
-            type="range"
-            min={0}
-            max={100}
-            step={1}
-            value={state.volume}
-            onChange={(event) => setVolume(Number(event.target.value))}
-            disabled={disabled}
-            className="h-2.5 flex-1 cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
-          />
-          <span className="w-10 text-right text-xs font-semibold">{state.muted || state.volume <= 0 ? '0%' : `${state.volume}%`}</span>
+        <div className="ml-auto flex min-w-[15rem] flex-1 items-center justify-end rounded-full border border-cyan-300/15 bg-cyan-300/8 px-4 py-2 text-right text-cyan-50">
+          <div>
+            <p className="text-[10px] font-black uppercase tracking-[0.18em]">Audio local</p>
+            <p className="text-xs text-cyan-50/70">Volume fin via YouTube / navigateur</p>
+          </div>
         </div>
       </div>
     </div>
