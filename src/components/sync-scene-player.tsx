@@ -448,7 +448,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           <div className="relative z-[1] p-2 md:p-3">
             <div>
               <div className="relative min-h-[44rem] overflow-hidden rounded-[1.6rem] border border-fuchsia-300/15 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.6)] xl:min-h-[50rem]">
-                  <div className="absolute inset-x-[7%] top-4 z-[1] h-[48%] overflow-hidden rounded-[1.55rem] border border-white/10 bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_70px_rgba(0,0,0,0.45)]">
+                  <div className="absolute inset-x-[10%] top-5 z-[1] h-[43%] overflow-hidden rounded-[1.55rem] border border-white/10 bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_70px_rgba(0,0,0,0.45)]">
                     <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-white/60">
                       <span>Screen wall</span>
                       <span>{currentTrack ? 'live video' : 'offline'}</span>
@@ -458,23 +458,23 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                     </div>
                   </div>
 
-                  <div className="absolute inset-x-[3%] bottom-[13.8rem] z-[2] h-12 rounded-[999px] bg-[linear-gradient(90deg,transparent,rgba(255,207,120,0.18),transparent)] blur-md" />
-                  <div className="absolute inset-x-[8%] bottom-[13rem] z-[3] h-3 rounded-full bg-[linear-gradient(90deg,transparent,rgba(255,207,120,0.7),transparent)]" />
-                  <div className="absolute inset-x-[12%] bottom-[11.6rem] z-[3] h-10 rounded-[999px] border border-gold/20 bg-[linear-gradient(180deg,rgba(195,137,45,0.42),rgba(63,35,13,0.88))]" />
-                  <div className="absolute inset-x-[14%] bottom-[9rem] z-[4] h-[7rem] rounded-[1.8rem_1.8rem_1rem_1rem] border border-[#7c5521]/60 bg-[linear-gradient(180deg,rgba(66,39,17,0.98),rgba(15,10,10,0.98))] shadow-[0_18px_28px_rgba(0,0,0,0.5)]" />
-                  <div className="absolute inset-x-[18%] bottom-[11.3rem] z-[5] flex items-center justify-between px-5 text-[10px] uppercase tracking-[0.18em] text-gold/72">
+                  <div className="absolute inset-x-[4%] bottom-[14.6rem] z-[2] h-12 rounded-[999px] bg-[linear-gradient(90deg,transparent,rgba(255,207,120,0.18),transparent)] blur-md" />
+                  <div className="absolute inset-x-[9%] bottom-[13.7rem] z-[3] h-3 rounded-full bg-[linear-gradient(90deg,transparent,rgba(255,207,120,0.7),transparent)]" />
+                  <div className="absolute inset-x-[13%] bottom-[12.2rem] z-[3] h-10 rounded-[999px] border border-gold/20 bg-[linear-gradient(180deg,rgba(195,137,45,0.42),rgba(63,35,13,0.88))]" />
+                  <div className="absolute inset-x-[14%] bottom-[9.8rem] z-[4] h-[7.2rem] rounded-[1.8rem_1.8rem_1rem_1rem] border border-[#7c5521]/60 bg-[linear-gradient(180deg,rgba(66,39,17,0.98),rgba(15,10,10,0.98))] shadow-[0_18px_28px_rgba(0,0,0,0.5)]" />
+                  <div className="absolute inset-x-[18%] bottom-[11.9rem] z-[5] flex items-center justify-between px-5 text-[10px] uppercase tracking-[0.18em] text-gold/72">
                     <span>Deck A</span>
                     <span>Mixer</span>
                     <span>Deck B</span>
                   </div>
 
-                  <div className="absolute left-1/2 bottom-[11rem] z-[6] flex -translate-x-1/2 flex-col items-center">
-                    <div className="absolute -top-8 h-28 w-28 rounded-full bg-fuchsia-400/18 blur-2xl" />
+                  <div className="absolute left-1/2 bottom-[12.6rem] z-[6] flex -translate-x-1/2 flex-col items-center">
+                    <div className="absolute -top-10 h-32 w-32 rounded-full bg-fuchsia-400/20 blur-2xl" />
                     <AvatarDisplay avatar={members.find((member) => member.role === 'owner')?.avatar} label={ownerLabel} size="lg" badge="DJ" />
-                    <span className="mt-3 rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-fuchsia-50">DJ booth</span>
+                    <span className="mt-2 rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-fuchsia-50">DJ booth</span>
                   </div>
 
-                  <div className="absolute inset-x-0 bottom-[18.2rem] z-[7] px-4">
+                  <div className="absolute inset-x-0 bottom-[19.4rem] z-[7] px-4">
                     <div className="bg-gradient-to-t from-black/80 to-transparent px-1 pb-2 pt-10">
                       <div className="flex items-center justify-between gap-3 text-sm text-white/80">
                         <span>Timing room · {formatClock(liveOffset)}</span>
@@ -486,20 +486,22 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                     </div>
                   </div>
 
-                  <div className="absolute inset-x-0 bottom-0 z-[8] rounded-t-[2.4rem] border-t border-white/8 bg-[linear-gradient(180deg,rgba(11,11,17,0.7),rgba(5,5,9,0.98))] px-5 pb-7 pt-7 backdrop-blur-sm">
+                  <div className="absolute inset-x-0 bottom-0 z-[8] rounded-t-[2.4rem] border-t border-white/8 bg-[linear-gradient(180deg,rgba(11,11,17,0.7),rgba(5,5,9,0.98))] px-5 pb-7 pt-8 backdrop-blur-sm">
                     <div className="mb-3 flex items-center justify-between gap-3 text-xs uppercase tracking-[0.18em] text-white/50">
                       <span>Fosse</span>
                       <span>{crowdMembers.length > 0 ? `${crowdMembers.length} auditeurs visibles` : 'en attente'}</span>
                     </div>
-                    <div className="flex min-h-[13.5rem] items-end gap-3 overflow-x-auto pb-1">
+                    <div className="rounded-[1.6rem] border border-cyan-300/8 bg-[linear-gradient(180deg,rgba(20,18,32,0.76),rgba(8,8,14,0.82))] px-4 py-5 shadow-[inset_0_0_24px_rgba(34,211,238,0.03)]">
+                    <div className="flex min-h-[13.8rem] items-end gap-3 overflow-x-auto pb-1">
                       {crowdMembers.length > 0 ? (
                         crowdMembers.map((member) => (
                           <div key={member.id} className="flex min-w-[5.6rem] flex-col items-center justify-end">
                             <div className={`mb-1 h-2 w-2 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.7)]' : 'bg-white/20'}`} />
-                            <div className={`relative h-[6.2rem] w-[4.8rem] rounded-[1.2rem_1.2rem_0.7rem_0.7rem] border ${member.online ? 'border-cyan-300/25 bg-cyan-300/10' : 'border-white/10 bg-white/5'}`}>
+                            <div className={`relative h-[6.6rem] w-[4.9rem] rounded-[1.2rem_1.2rem_0.7rem_0.7rem] border transition ${member.online ? 'border-cyan-300/25 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,0.08)]' : 'border-white/10 bg-white/5'}`}>
                               <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-5">
                                 <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" />
                               </div>
+                              <div className="absolute inset-x-2 bottom-2 h-8 rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />
                             </div>
                             <p className="mt-2 max-w-[4.8rem] truncate text-center text-[11px] font-semibold text-white/82">{member.label}</p>
                           </div>
@@ -507,6 +509,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                       ) : (
                         <div className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/55">La fosse est encore vide.</div>
                       )}
+                    </div>
                     </div>
                   </div>
                 </div>
