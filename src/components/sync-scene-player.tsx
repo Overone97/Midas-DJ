@@ -556,35 +556,21 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
         </div>
       </div>
 
-      <div className="rounded-[1.2rem] border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(7,10,18,0.96),rgba(11,15,23,0.92))] p-3 text-white/78 shadow-[0_18px_60px_rgba(0,0,0,0.32)] xl:self-start xl:sticky xl:top-4">
-        <div className="flex items-center justify-between gap-3">
-          <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-200/70">Booth controls</p>
-          <h4 className="text-sm font-black text-white">Volume local</h4>
-        </div>
-
-        <div className="mt-3 grid gap-2">
+      <div className="rounded-[1rem] border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(7,10,18,0.96),rgba(11,15,23,0.92))] px-2.5 py-2 text-white/78 shadow-[0_12px_35px_rgba(0,0,0,0.28)] xl:self-start xl:sticky xl:top-4">
+        <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
           <button
             type="button"
             onClick={() => onTogglePlayback(playback?.state === 'playing' ? 'paused' : 'playing', liveOffset)}
             disabled={!currentTrack || !canControl}
-            className="rounded-full bg-gold px-3 py-2 text-sm font-semibold text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            className="shrink-0 rounded-full bg-gold px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
-            {playback?.state === 'playing' ? 'Mettre en pause la scène' : 'Lancer la scène'}
-          </button>
-          <button
-            type="button"
-            onClick={() => onNextTrack()}
-            disabled={!currentTrack || !canControl}
-            className="rounded-full border border-white/15 px-3 py-2 text-sm font-semibold text-white transition hover:bg-white/5 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            Morceau suivant
+            {playback?.state === 'playing' ? 'Stop' : 'Play'}
           </button>
 
-          <div className="rounded-[1rem] border border-cyan-300/25 bg-[linear-gradient(180deg,rgba(34,211,238,0.18),rgba(34,211,238,0.08))] px-3 py-2.5 shadow-[0_0_0_1px_rgba(34,211,238,0.08)]">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-cyan-50">Volume</span>
-              <span className="rounded-full border border-cyan-200/30 bg-black/20 px-2 py-0.5 text-[10px] font-bold text-cyan-50">{localVolume}%</span>
-            </div>
+          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-white/88">{currentTrack?.title ?? 'Aucun titre chargé'}</span>
+
+          <div className="flex shrink-0 items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2 py-1">
+            <span className="text-[10px] font-bold text-cyan-50">🔊</span>
             <input
               type="range"
               min={0}
@@ -618,13 +604,8 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                 setLocalVolume(nextVolume);
               }}
               disabled={!currentTrack}
-              className="mt-2 h-3 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+              className="h-2.5 w-20 cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
             />
-            <div className="mt-1 flex items-center justify-between text-[10px] uppercase tracking-[0.14em] text-cyan-50/80">
-              <span>Muet</span>
-              <span>Fort</span>
-            </div>
-            <p className="mt-1 text-[10px] leading-4 text-cyan-50/80">Touchez le slider une fois pour déverrouiller le son local.</p>
           </div>
         </div>
       </div>
