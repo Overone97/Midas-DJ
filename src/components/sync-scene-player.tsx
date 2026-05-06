@@ -430,37 +430,67 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const ownerPalette = getAvatarPalette(ownerLabel);
 
   return (
-    <div className="grid gap-4 xl:grid-cols-[minmax(0,2.2fr)_300px]">
-      <div className="overflow-hidden rounded-[2rem] border border-fuchsia-400/20 bg-[radial-gradient(circle_at_top,#fb718522,transparent_28%),radial-gradient(circle_at_15%_75%,#9333ea26,transparent_30%),radial-gradient(circle_at_85%_20%,#22d3ee22,transparent_28%),linear-gradient(180deg,#20112d,#09060f)] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
-        <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
-          <div className="min-w-0">
-            <p className="text-[10px] uppercase tracking-[0.3em] text-gold/70">Main stage</p>
-            <h4 className="mt-1 line-clamp-2 text-xl font-black text-white">{currentTrack?.title ?? 'Aucun titre chargé'}</h4>
-          </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <div className="flex items-center gap-2 rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5">
-              <div className="relative flex h-8 w-8 items-center justify-center rounded-full border border-gold/30 bg-[linear-gradient(180deg,#4a3210,#171009)] text-[10px] font-black text-gold">{getInitials(ownerLabel) || 'DJ'}</div>
-              <div className="min-w-0">
-                <p className="text-[9px] uppercase tracking-[0.18em] text-white/45">DJ booth</p>
-                <p className="max-w-[8rem] truncate text-[11px] font-semibold text-white">{ownerLabel}</p>
-              </div>
-            </div>
-            <div className="flex items-end gap-1 rounded-full border border-fuchsia-300/10 bg-white/5 px-2.5 py-2">
-              {Array.from({ length: 8 }).map((_, index) => {
-                const base = playback?.state === 'playing' ? 8 + ((index * 11 + Math.floor(liveOffset * 10)) % 12) : 6;
-                return <span key={index} className="w-1 rounded-full bg-gradient-to-t from-gold via-amber-300 to-white/90" style={{ height: `${base}px` }} />;
-              })}
-            </div>
-            <div className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1.5 text-[10px] text-white/68">
-              <span className="font-semibold text-white/82">{playback?.state ?? 'aucun'}</span>
-              <span className="mx-1.5 text-white/30">•</span>
-              <span>{formatClock(getExpectedOffset(playback))}</span>
-            </div>
-            <span className="rounded-full border border-gold/20 bg-gold/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-gold">{stageBadge}</span>
-          </div>
+    <div className="overflow-hidden rounded-[2rem] border border-fuchsia-400/20 bg-[radial-gradient(circle_at_top,#fb718522,transparent_28%),radial-gradient(circle_at_15%_75%,#9333ea26,transparent_30%),radial-gradient(circle_at_85%_20%,#22d3ee22,transparent_28%),linear-gradient(180deg,#20112d,#09060f)] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-[0.3em] text-gold/70">Main stage</p>
+          <h4 className="mt-1 line-clamp-2 text-xl font-black text-white">{currentTrack?.title ?? 'Aucun titre chargé'}</h4>
         </div>
+        <div className="flex min-w-0 flex-1 items-center justify-end gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-2 rounded-full border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(7,10,18,0.96),rgba(11,15,23,0.92))] px-2.5 py-2 text-white/78 shadow-[0_12px_35px_rgba(0,0,0,0.2)]">
+            <button
+              type="button"
+              onClick={() => onTogglePlayback(playback?.state === 'playing' ? 'paused' : 'playing', liveOffset)}
+              disabled={!currentTrack || !canControl}
+              className="shrink-0 rounded-full bg-gold px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {playback?.state === 'playing' ? 'Stop' : 'Play'}
+            </button>
+            <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-white/88">{currentTrack?.title ?? 'Aucun titre chargé'}</span>
+            <div className="flex shrink-0 items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2 py-1">
+              <span className="text-[10px] font-bold text-cyan-50">🔊</span>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={1}
+                value={localVolume}
+                onPointerDown={() => {
+                  if (currentTrack) {
+                    unlockLocalAudio(localVolume);
+                  }
+                }}
+                onPointerUp={() => {
+                  if (currentTrack) {
+                    unlockLocalAudio(localVolume);
+                  }
+                }}
+                onTouchStart={() => {
+                  if (currentTrack) {
+                    unlockLocalAudio(localVolume);
+                  }
+                }}
+                onChange={(event) => {
+                  const nextVolume = Number(event.target.value);
+                  setLocalVolume(nextVolume);
+                  if (currentTrack) {
+                    unlockLocalAudio(nextVolume);
+                  }
+                }}
+                onInput={(event) => {
+                  const nextVolume = Number((event.target as HTMLInputElement).value);
+                  setLocalVolume(nextVolume);
+                }}
+                disabled={!currentTrack}
+                className="h-2.5 w-20 cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
+              />
+            </div>
+          </div>
+          <span className="shrink-0 rounded-full border border-gold/20 bg-gold/10 px-3 py-1.5 text-[10px] uppercase tracking-[0.22em] text-gold">{stageBadge}</span>
+        </div>
+      </div>
 
-        <div className="relative overflow-hidden rounded-[1.9rem] border border-white/10 bg-[linear-gradient(180deg,#140d1d,#05040a)]">
+      <div className="relative overflow-hidden rounded-[1.9rem] border border-white/10 bg-[linear-gradient(180deg,#140d1d,#05040a)]">
           <div className="pointer-events-none absolute inset-0 opacity-90">
             <div className="absolute left-[10%] top-0 h-48 w-48 rounded-full bg-fuchsia-500/20 blur-3xl" />
             <div className="absolute right-[8%] top-[10%] h-52 w-52 rounded-full bg-cyan-400/18 blur-3xl" />
@@ -546,61 +576,6 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                 </div>
             </div>
           </div>
-        </div>
-      </div>
-
-      <div className="rounded-[1rem] border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(7,10,18,0.96),rgba(11,15,23,0.92))] px-2.5 py-2 text-white/78 shadow-[0_12px_35px_rgba(0,0,0,0.28)] xl:self-start xl:sticky xl:top-4">
-        <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap">
-          <button
-            type="button"
-            onClick={() => onTogglePlayback(playback?.state === 'playing' ? 'paused' : 'playing', liveOffset)}
-            disabled={!currentTrack || !canControl}
-            className="shrink-0 rounded-full bg-gold px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {playback?.state === 'playing' ? 'Stop' : 'Play'}
-          </button>
-
-          <span className="min-w-0 flex-1 truncate text-[11px] font-semibold text-white/88">{currentTrack?.title ?? 'Aucun titre chargé'}</span>
-
-          <div className="flex shrink-0 items-center gap-2 rounded-full border border-cyan-300/20 bg-cyan-300/10 px-2 py-1">
-            <span className="text-[10px] font-bold text-cyan-50">🔊</span>
-            <input
-              type="range"
-              min={0}
-              max={100}
-              step={1}
-              value={localVolume}
-              onPointerDown={() => {
-                if (currentTrack) {
-                  unlockLocalAudio(localVolume);
-                }
-              }}
-              onPointerUp={() => {
-                if (currentTrack) {
-                  unlockLocalAudio(localVolume);
-                }
-              }}
-              onTouchStart={() => {
-                if (currentTrack) {
-                  unlockLocalAudio(localVolume);
-                }
-              }}
-              onChange={(event) => {
-                const nextVolume = Number(event.target.value);
-                setLocalVolume(nextVolume);
-                if (currentTrack) {
-                  unlockLocalAudio(nextVolume);
-                }
-              }}
-              onInput={(event) => {
-                const nextVolume = Number((event.target as HTMLInputElement).value);
-                setLocalVolume(nextVolume);
-              }}
-              disabled={!currentTrack}
-              className="h-2.5 w-20 cursor-pointer appearance-none rounded-full bg-white/10 accent-cyan-300 disabled:cursor-not-allowed disabled:opacity-50"
-            />
-          </div>
-        </div>
       </div>
     </div>
   );
