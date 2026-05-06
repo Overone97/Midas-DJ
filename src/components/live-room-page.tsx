@@ -599,7 +599,9 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     }
 
     setChatSubmitting(true);
-    setChatFeedback({ tone: 'neutral', text: 'Message envoyé au dancefloor…' });
+    setChatFeedback(null);
+
+    const optimisticId = `optimistic-${Date.now()}`;
 
     try {
       const { data: authData } = await supabase.auth.getUser();
@@ -607,6 +609,29 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       if (!user) {
         throw new Error('Session expirée. Recharge ou reconnecte-toi.');
       }
+
+      const optimisticLabel =
+        state.members.find((member) => member.id === user.id)?.label ||
+        user.user_metadata?.username ||
+        user.email?.split('@')[0] ||
+        'Toi';
+
+      setState((current) => ({
+        ...current,
+        chat: {
+          messages: [
+            ...(current.chat?.messages ?? []),
+            {
+              id: optimisticId,
+              content,
+              createdAt: new Date().toISOString(),
+              userId: user.id,
+              authorLabel: optimisticLabel,
+            },
+          ],
+        },
+      }));
+      setChatMessage('');
 
       const { error } = await supabase.from('messages').insert({
         room_id: state.room.id,
@@ -617,10 +642,13 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       if (error) {
         throw error;
       }
-
-      setChatMessage('');
-      setChatFeedback({ tone: 'success', text: 'Message lâché dans la room.' });
     } catch (error) {
+      setState((current) => ({
+        ...current,
+        chat: {
+          messages: (current.chat?.messages ?? []).filter((message) => message.id !== optimisticId),
+        },
+      }));
       const message = error instanceof Error ? error.message : 'Impossible d’envoyer ce message.';
       setChatFeedback({ tone: 'error', text: message });
     } finally {
