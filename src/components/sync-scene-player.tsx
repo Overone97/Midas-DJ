@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AvatarDisplay } from '@/components/avatar-display';
 import { SceneAudioControlBar } from '@/components/scene-audio-control-bar';
 import { globalAudioController, useGlobalAudioController } from '@/lib/audio-controller';
-import type { PlaybackPreview, QueueItemPreview, RoomMemberPreview } from '@/lib/rooms';
+import type { PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomReactionSummary, RoomReactionType } from '@/lib/rooms';
 
 declare global {
   interface Window {
@@ -49,12 +49,26 @@ type YouTubePlayer = {
 type ScenePlayerProps = {
   track?: QueueItemPreview;
   playback?: PlaybackPreview;
+  reactions?: RoomReactionSummary;
   canControl: boolean;
   members: RoomMemberPreview[];
   ownerLabel: string;
   onTogglePlayback: (nextState: 'playing' | 'paused', currentOffset: number) => void;
   onNextTrack: () => void;
   onStopPlayback: () => void;
+};
+
+type ReactionBurst = {
+  id: string;
+  type: RoomReactionType;
+  lane: number;
+  side: 'left' | 'right';
+};
+
+const reactionVisuals: Record<RoomReactionType, { label: string; emoji: string; accent: string; glow: string }> = {
+  woot: { label: 'Woot', emoji: '🔥', accent: 'text-fuchsia-50', glow: 'from-fuchsia-400/30 to-transparent' },
+  grab: { label: 'Grab', emoji: '💿', accent: 'text-cyan-50', glow: 'from-cyan-400/30 to-transparent' },
+  meh: { label: 'Meh', emoji: '🫠', accent: 'text-amber-50', glow: 'from-amber-300/30 to-transparent' },
 };
 
 function getExpectedOffset(playback?: PlaybackPreview) {
@@ -105,7 +119,7 @@ function ensureYouTubeApi() {
   });
 }
 
-export function SyncScenePlayer({ track, playback, canControl, members, ownerLabel, onTogglePlayback, onNextTrack, onStopPlayback }: ScenePlayerProps) {
+export function SyncScenePlayer({ track, playback, reactions, canControl, members, ownerLabel, onTogglePlayback, onNextTrack, onStopPlayback }: ScenePlayerProps) {
   const playerHostRef = useRef<HTMLDivElement | null>(null);
   const playerRef = useRef<YouTubePlayer | null>(null);
   const readyRef = useRef(false);
@@ -120,14 +134,54 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   const playerStateRef = useRef<number | null>(null);
   const autoAdvanceTrackRef = useRef<string | null>(null);
   const audioUnlockedRef = useRef(false);
+  const previousReactionCountsRef = useRef<RoomReactionSummary['counts'] | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
   const [liveOffset, setLiveOffset] = useState(0);
+  const [reactionBursts, setReactionBursts] = useState<ReactionBurst[]>([]);
   const { state: globalAudioState } = useGlobalAudioController();
 
   const currentTrack = track;
   const syncedMembers = members.filter((member) => member.online);
   const syncedCount = syncedMembers.length;
   const crowdMembers = members.slice(0, 8);
+
+  useEffect(() => {
+    if (!reactions) {
+      previousReactionCountsRef.current = null;
+      return;
+    }
+
+    const previous = previousReactionCountsRef.current;
+    previousReactionCountsRef.current = reactions.counts;
+    if (!previous) {
+      return;
+    }
+
+    const nextBursts: ReactionBurst[] = [];
+    (Object.entries(reactions.counts) as [RoomReactionType, number][]).forEach(([type, count], typeIndex) => {
+      const diff = count - (previous[type] ?? 0);
+      const burstCount = Math.min(3, Math.max(0, diff));
+      for (let index = 0; index < burstCount; index += 1) {
+        nextBursts.push({
+          id: `${type}-${Date.now()}-${typeIndex}-${index}`,
+          type,
+          lane: (typeIndex + index) % 3,
+          side: (typeIndex + index) % 2 === 0 ? 'left' : 'right',
+        });
+      }
+    });
+
+    if (!nextBursts.length) {
+      return;
+    }
+
+    setReactionBursts((current) => [...current, ...nextBursts].slice(-12));
+    const timeout = window.setTimeout(() => {
+      setReactionBursts((current) => current.filter((burst) => !nextBursts.some((entry) => entry.id === burst.id)));
+    }, 2100);
+
+    return () => window.clearTimeout(timeout);
+  }, [reactions]);
 
   function syncPlayer(mode: 'soft' | 'hard' = 'soft') {
     const player = playerRef.current;
@@ -491,7 +545,31 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                       <span>Fosse</span>
                       <span>{crowdMembers.length > 0 ? `${crowdMembers.length} auditeurs visibles` : 'en attente'}</span>
                     </div>
-                    <div className="rounded-[1.6rem] border border-cyan-300/8 bg-[linear-gradient(180deg,rgba(20,18,32,0.76),rgba(8,8,14,0.82))] px-4 py-5 shadow-[inset_0_0_24px_rgba(34,211,238,0.03)]">
+                    {reactions ? (
+                      <div className="mb-3 flex flex-wrap gap-2">
+                        {(Object.entries(reactions.counts) as [RoomReactionType, number][]).map(([type, count]) => (
+                          <div key={type} className={`rounded-full border border-white/8 bg-white/6 px-3 py-1.5 text-[10px] font-black uppercase tracking-[0.16em] ${reactionVisuals[type].accent}`}>
+                            {reactionVisuals[type].emoji} {reactionVisuals[type].label} · {count}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                    <div className="relative rounded-[1.6rem] border border-cyan-300/8 bg-[linear-gradient(180deg,rgba(20,18,32,0.76),rgba(8,8,14,0.82))] px-4 py-5 shadow-[inset_0_0_24px_rgba(34,211,238,0.03)]">
+                    <div className="pointer-events-none absolute inset-x-6 bottom-[9.8rem] z-[9] h-28 overflow-hidden">
+                      {reactionBursts.map((burst, index) => (
+                        <div
+                          key={burst.id}
+                          className={`reaction-burst absolute bottom-0 ${burst.side === 'left' ? 'left-[12%]' : 'right-[12%]'} ${reactionVisuals[burst.type].accent}`}
+                          style={{
+                            animationDelay: `${index * 40}ms`,
+                            transform: `translateX(${burst.side === 'left' ? burst.lane * 44 : burst.lane * -44}px)`,
+                          }}
+                        >
+                          <div className={`absolute inset-0 -z-10 rounded-full bg-gradient-to-t ${reactionVisuals[burst.type].glow} blur-xl`} />
+                          <span className="text-lg drop-shadow-[0_0_12px_rgba(255,255,255,0.18)]">{reactionVisuals[burst.type].emoji}</span>
+                        </div>
+                      ))}
+                    </div>
                     <div className="mb-4 grid grid-cols-3 gap-2 text-[10px] uppercase tracking-[0.16em] text-white/44">
                       <div className="rounded-full border border-white/8 bg-white/5 px-3 py-2 text-center">front rail</div>
                       <div className="rounded-full border border-fuchsia-300/12 bg-fuchsia-300/6 px-3 py-2 text-center text-fuchsia-100/55">crowd heat</div>
