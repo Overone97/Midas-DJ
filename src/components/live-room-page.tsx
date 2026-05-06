@@ -267,19 +267,19 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         user
           ? supabase
               .from('profiles')
-              .select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge')
+              .select('id, username')
               .eq('id', user.id)
               .maybeSingle()
           : Promise.resolve({ data: null, error: null }),
-        supabase.from('profiles').select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge').eq('id', room.owner_id).maybeSingle(),
+        supabase.from('profiles').select('id, username').eq('id', room.owner_id).maybeSingle(),
         supabase
           .from('room_members')
-          .select('role, profiles!room_members_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
+          .select('role, profiles!room_members_user_id_fkey(id, username)')
           .eq('room_id', room.id)
           .limit(12),
         supabase
           .from('queue_items')
-          .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
+          .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(id, username)')
           .eq('room_id', room.id)
           .in('status', ['queued', 'playing'])
           .order('position', { ascending: true })
@@ -291,7 +291,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           .maybeSingle(),
         supabase
           .from('messages')
-          .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
+          .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(id, username)')
           .eq('room_id', room.id)
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
@@ -430,7 +430,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     async function fetchQueueRows() {
       return supabase
         .from('queue_items')
-        .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
+        .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(id, username)')
         .eq('room_id', roomId)
         .in('status', ['queued', 'playing'])
         .order('position', { ascending: true })
@@ -470,7 +470,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     async function fetchMessages() {
       return supabase
         .from('messages')
-        .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
+        .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(id, username)')
         .eq('room_id', roomId)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
@@ -518,7 +518,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           const inserted = payload.new as { id: string; content: string; created_at: string; user_id: string };
           const { data: profileData } = await supabase
             .from('profiles')
-            .select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge')
+            .select('id, username')
             .eq('id', inserted.user_id)
             .maybeSingle();
 
@@ -555,7 +555,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'room_members', filter: `room_id=eq.${roomId}` }, async () => {
         const { data } = await supabase
           .from('room_members')
-          .select('role, profiles!room_members_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge)')
+          .select('role, profiles!room_members_user_id_fkey(id, username)')
           .eq('room_id', roomId)
           .limit(12);
 
@@ -868,7 +868,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           })
           .eq('id', userId);
 
-        if (error) {
+        if (error && !/column .*avatar_|schema cache/i.test(error.message)) {
           throw error;
         }
       }
