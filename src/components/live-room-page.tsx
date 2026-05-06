@@ -5,7 +5,7 @@ import { AvatarCustomizer } from '@/components/avatar-customizer';
 import { RoomPageView } from '@/components/room-page';
 import { DEFAULT_AVATAR, loadStoredAvatar, normalizeAvatar, saveStoredAvatar, type AvatarConfig } from '@/lib/avatar';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import type { ChatMessagePreview, PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomPageState, RoomRole } from '@/lib/rooms';
+import type { ChatMessagePreview, PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomPageState, RoomReactionSummary, RoomReactionType, RoomRole } from '@/lib/rooms';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl } from '@/lib/youtube';
 
 type PresenceMeta = {
@@ -79,6 +79,19 @@ type MessageRow = {
   created_at: string;
   user_id: string;
   profiles?: AvatarProfileRow | AvatarProfileRow[] | null;
+};
+
+type VoteRow = {
+  id: string;
+  queue_item_id: string;
+  user_id: string;
+  type: RoomReactionType;
+};
+
+const emptyReactionCounts: Record<RoomReactionType, number> = {
+  woot: 0,
+  grab: 0,
+  meh: 0,
 };
 
 function flattenPresence(state: Record<string, PresenceMeta[] | undefined>) {
@@ -172,6 +185,20 @@ function mapMessageRows(rows: MessageRow[]): ChatMessagePreview[] {
   }));
 }
 
+function summarizeReactions(rows: VoteRow[], currentQueueItemId?: string | null, currentUserId?: string) {
+  const relevant = rows.filter((row) => row.queue_item_id === currentQueueItemId);
+  const counts = relevant.reduce<Record<RoomReactionType, number>>(
+    (acc, row) => ({ ...acc, [row.type]: acc[row.type] + 1 }),
+    { ...emptyReactionCounts },
+  );
+
+  return {
+    currentQueueItemId,
+    counts,
+    currentUserReaction: relevant.find((row) => row.user_id === currentUserId)?.type ?? null,
+  } satisfies RoomReactionSummary;
+}
+
 function getCurrentOffset(playback?: PlaybackPreview) {
   if (!playback) {
     return 0;
@@ -263,7 +290,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         }
       }
 
-      const [{ data: viewerProfile }, { data: ownerProfile }, { data: membersData }, { data: queueItemsData }, { data: playbackData }, { data: messagesData }] = await Promise.all([
+      const [{ data: viewerProfile }, { data: ownerProfile }, { data: membersData }, { data: queueItemsData }, { data: playbackData }, { data: messagesData }, { data: votesData }] = await Promise.all([
         user
           ? supabase
               .from('profiles')
@@ -296,6 +323,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
           .limit(30),
+        supabase.from('votes').select('id, queue_item_id, user_id, type').eq('room_id', room.id),
       ]);
 
       if (cancelled) {
@@ -305,6 +333,8 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       const role = user ? (membershipData?.role ?? (user.id === room.owner_id ? 'owner' : 'visitor')) : 'visitor';
       const denied = room.type === 'private' && role === 'visitor';
       const queueItems = mapQueueRows((queueItemsData as QueueRow[]) ?? []);
+      const playback = mapPlaybackRow(playbackData as PlaybackRow | null);
+      const currentQueueItemId = playback?.currentQueueItemId ?? queueItems.find((item) => item.status === 'playing')?.id ?? queueItems[0]?.id;
 
       setState({
         status: denied ? 'forbidden' : 'live',
@@ -329,8 +359,9 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         },
         members: mapMemberRows((membersData as MemberRow[]) ?? []),
         queue: { items: queueItems },
-        playback: mapPlaybackRow(playbackData as PlaybackRow | null),
+        playback,
         chat: { messages: mapMessageRows((messagesData as MessageRow[]) ?? []).reverse() },
+        reactions: summarizeReactions((votesData as VoteRow[]) ?? [], currentQueueItemId, user?.id),
         presence: { enabled: true, connected: false, onlineCount: 0 },
       });
 
@@ -450,6 +481,12 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         ...current,
         room: { ...current.room, queueDepth: items.length },
         queue: { items },
+        reactions: current.reactions
+          ? {
+              ...current.reactions,
+              currentQueueItemId: current.playback?.currentQueueItemId ?? items.find((item) => item.status === 'playing')?.id ?? items[0]?.id ?? null,
+            }
+          : current.reactions,
       }));
     }
 
@@ -464,7 +501,36 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         return;
       }
 
-      setState((current) => ({ ...current, playback: mapPlaybackRow(data as PlaybackRow | null) }));
+      setState((current) => {
+        const nextPlayback = mapPlaybackRow(data as PlaybackRow | null);
+        return {
+          ...current,
+          playback: nextPlayback,
+          reactions: current.reactions
+            ? {
+                ...current.reactions,
+                currentQueueItemId: nextPlayback?.currentQueueItemId ?? current.queue?.items.find((item) => item.status === 'playing')?.id ?? current.queue?.items[0]?.id ?? null,
+              }
+            : current.reactions,
+        };
+      });
+    }
+
+    async function refreshReactions() {
+      const { data, error } = await supabase.from('votes').select('id, queue_item_id, user_id, type').eq('room_id', roomId);
+
+      if (error) {
+        return;
+      }
+
+      setState((current) => ({
+        ...current,
+        reactions: summarizeReactions(
+          (data as VoteRow[]) ?? [],
+          current.playback?.currentQueueItemId ?? current.queue?.items.find((item) => item.status === 'playing')?.id ?? current.queue?.items[0]?.id,
+          current.currentUser.id,
+        ),
+      }));
     }
 
     async function fetchMessages() {
@@ -569,15 +635,24 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       })
       .subscribe();
 
+    const votesChannel = supabase
+      .channel(`room-votes:${roomId}`)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'votes', filter: `room_id=eq.${roomId}` }, () => {
+        void refreshReactions();
+      })
+      .subscribe();
+
     void refreshQueue();
     void refreshPlayback();
     void refreshMessages();
+    void refreshReactions();
 
     return () => {
       void supabase.removeChannel(queueChannel);
       void supabase.removeChannel(playbackChannel);
       void supabase.removeChannel(messagesChannel);
       void supabase.removeChannel(membersChannel);
+      void supabase.removeChannel(votesChannel);
     };
   }, [state.envReady, state.room.id]);
 
@@ -773,6 +848,77 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       setChatFeedback({ tone: 'error', text: message });
     } finally {
       setChatSubmitting(false);
+    }
+  }
+
+  async function handleReaction(reaction: RoomReactionType) {
+    if (!state.envReady || !state.room.id) {
+      return;
+    }
+
+    const currentQueueItemId = state.playback?.currentQueueItemId ?? state.queue?.items.find((item) => item.status === 'playing')?.id ?? state.queue?.items[0]?.id;
+    if (!currentQueueItemId) {
+      setChatFeedback({ tone: 'error', text: 'Pas de track active à noter. Ce serait un peu fort.' });
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      return;
+    }
+
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData.user;
+    if (!user) {
+      setChatFeedback({ tone: 'error', text: 'Connecte-toi pour réagir au set.' });
+      return;
+    }
+
+    const previousReaction = state.reactions?.currentUserReaction ?? null;
+    const nextReaction = previousReaction === reaction ? null : reaction;
+
+    setState((current) => {
+      const counts = { ...(current.reactions?.counts ?? emptyReactionCounts) };
+      if (previousReaction) {
+        counts[previousReaction] = Math.max(0, counts[previousReaction] - 1);
+      }
+      if (nextReaction) {
+        counts[nextReaction] += 1;
+      }
+
+      return {
+        ...current,
+        reactions: {
+          currentQueueItemId,
+          counts,
+          currentUserReaction: nextReaction,
+        },
+      };
+    });
+
+    const { error: deleteError } = await supabase.from('votes').delete().eq('room_id', state.room.id).eq('queue_item_id', currentQueueItemId).eq('user_id', user.id);
+
+    const insertError = nextReaction
+      ? (
+          await supabase.from('votes').insert({
+            room_id: state.room.id,
+            queue_item_id: currentQueueItemId,
+            user_id: user.id,
+            type: nextReaction,
+          })
+        ).error
+      : null;
+    if (deleteError || insertError) {
+      setChatFeedback({ tone: 'error', text: (deleteError ?? insertError)?.message ?? 'Impossible d’enregistrer ta réaction.' });
+      const { data } = await supabase.from('votes').select('id, queue_item_id, user_id, type').eq('room_id', state.room.id);
+      setState((current) => ({
+        ...current,
+        reactions: summarizeReactions(
+          (data as VoteRow[]) ?? [],
+          current.playback?.currentQueueItemId ?? current.queue?.items.find((item) => item.status === 'playing')?.id ?? current.queue?.items[0]?.id,
+          current.currentUser.id,
+        ),
+      }));
     }
   }
 
@@ -976,6 +1122,11 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           feedback: chatFeedback,
           onChange: setChatMessage,
           onSubmit: () => void handleChatSubmit(),
+        }}
+        reactionControls={{
+          counts: hydratedState.reactions?.counts ?? emptyReactionCounts,
+          currentUserReaction: hydratedState.reactions?.currentUserReaction,
+          onReact: (reaction) => void handleReaction(reaction),
         }}
         avatarControls={{
           open: avatarEditorOpen,

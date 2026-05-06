@@ -1,11 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { AvatarDisplay } from '@/components/avatar-display';
 import { SyncScenePlayer } from '@/components/sync-scene-player';
 import type { AvatarConfig } from '@/lib/avatar';
-import type { RoomPageState, RoomRole } from '@/lib/rooms';
+import type { RoomPageState, RoomReactionType, RoomRole } from '@/lib/rooms';
 
 type QueueComposerProps = {
   url: string;
@@ -48,6 +48,12 @@ type AvatarControlsProps = {
   onSave: () => void;
 };
 
+type ReactionControlsProps = {
+  counts: Record<RoomReactionType, number>;
+  currentUserReaction?: RoomReactionType | null;
+  onReact: (reaction: RoomReactionType) => void;
+};
+
 const roleLabels: Record<RoomRole, string> = {
   owner: 'Owner',
   mod: 'Mod',
@@ -84,12 +90,14 @@ export function RoomPageView({
   playerControls,
   chatComposer,
   avatarControls,
+  reactionControls,
 }: {
   state: RoomPageState;
   queueComposer?: QueueComposerProps;
   playerControls?: PlayerControlsProps;
   chatComposer?: ChatComposerProps;
   avatarControls?: AvatarControlsProps;
+  reactionControls?: ReactionControlsProps;
 }) {
   const isPrivate = state.room.type === 'private';
   const denied = state.status === 'forbidden';
@@ -100,6 +108,7 @@ export function RoomPageView({
   const currentTrack = queueItems.find((item) => item.id === state.playback?.currentQueueItemId) ?? queueItems.find((item) => item.status === 'playing') ?? queueItems[0];
   const chatMessages = state.chat?.messages ?? [];
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const [rightPanelTab, setRightPanelTab] = useState<'chat' | 'users'>('chat');
 
   useEffect(() => {
     const node = chatScrollRef.current;
@@ -175,8 +184,18 @@ export function RoomPageView({
         </div>
 
         <div className="rounded-[1.8rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(8,14,20,0.96),rgba(8,10,16,0.94))] p-4 xl:sticky xl:top-4">
-          <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-100/72">Chat live</p>
-          <h3 className="mt-1 text-lg font-black text-white">Le dancefloor parle</h3>
+          <div className="flex items-center justify-between gap-3">
+            <div>
+              <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-100/72">Room live</p>
+              <h3 className="mt-1 text-lg font-black text-white">Le dancefloor parle</h3>
+            </div>
+            <div className="flex rounded-full border border-white/10 bg-black/25 p-1 text-xs font-semibold text-white/70">
+              <button type="button" onClick={() => setRightPanelTab('chat')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'chat' ? 'bg-cyan-300/16 text-cyan-50' : 'hover:bg-white/6'}`}>Chat</button>
+              <button type="button" onClick={() => setRightPanelTab('users')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'users' ? 'bg-cyan-300/16 text-cyan-50' : 'hover:bg-white/6'}`}>Users</button>
+            </div>
+          </div>
+
+          {rightPanelTab === 'chat' ? (
           <div className="relative mt-4">
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-12 rounded-t-[1.2rem] bg-[linear-gradient(180deg,rgba(4,10,16,0.95),rgba(4,10,16,0.55),transparent)]" />
             <div ref={chatScrollRef} className="chat-scrollbar max-h-[46rem] space-y-2 overflow-y-auto rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-3 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
@@ -198,7 +217,27 @@ export function RoomPageView({
             )}
             </div>
           </div>
-          {chatComposer && state.currentUser.isLoggedIn ? (
+          ) : (
+            <div className="mt-4 space-y-3 rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-3 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
+              {state.members.length > 0 ? (
+                state.members.map((member) => (
+                  <div key={member.id} className="flex items-center justify-between rounded-[1rem] border border-white/8 bg-white/5 px-3 py-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-white/90">{member.label}</p>
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">{member.online ? 'en ligne' : 'hors piste'}</p>
+                      </div>
+                    </div>
+                    <span className={`rounded-full border px-3 py-1 text-[10px] ${roleAccent[member.role]}`}>{roleLabels[member.role]}</span>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[1rem] border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/55">Personne à afficher pour l’instant.</div>
+              )}
+            </div>
+          )}
+          {chatComposer && state.currentUser.isLoggedIn && rightPanelTab === 'chat' ? (
             <>
               <div className="mt-4 space-y-3">
                 <textarea value={chatComposer.value} onChange={(event) => chatComposer.onChange(event.target.value)} placeholder="Balance une réaction sur le morceau..." rows={3} className="w-full resize-none rounded-[1.2rem] border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(0,0,0,0.28),rgba(34,211,238,0.05))] px-4 py-3 text-white outline-none shadow-[inset_0_0_20px_rgba(34,211,238,0.04)] focus:border-cyan-300/45" />
@@ -207,12 +246,34 @@ export function RoomPageView({
               <button type="button" onClick={chatComposer.onSubmit} disabled={chatComposer.submitting} className="mt-4 w-full rounded-full border border-cyan-300/20 bg-cyan-300/8 px-5 py-3 font-semibold text-cyan-50 transition hover:bg-cyan-300/12 disabled:cursor-not-allowed disabled:opacity-60">
                 {chatComposer.submitting ? 'Envoi…' : 'Envoyer dans la room'}
               </button>
+              {reactionControls ? (
+                <div className="mt-4 grid grid-cols-3 gap-2">
+                  {([
+                    ['woot', 'Woot'],
+                    ['grab', 'Grab'],
+                    ['meh', 'Meh'],
+                  ] as const).map(([key, label]) => {
+                    const active = reactionControls.currentUserReaction === key;
+                    return (
+                      <button
+                        key={key}
+                        type="button"
+                        onClick={() => reactionControls.onReact(key)}
+                        className={`rounded-[1rem] border px-3 py-3 text-left transition ${active ? 'border-fuchsia-300/35 bg-fuchsia-300/14 text-fuchsia-50 shadow-[0_0_18px_rgba(217,70,239,0.14)]' : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/8'}`}
+                      >
+                        <div className="text-sm font-black uppercase tracking-[0.12em]">{label}</div>
+                        <div className="mt-1 text-xs text-white/55">{reactionControls.counts[key]} vibe{reactionControls.counts[key] > 1 ? 's' : ''}</div>
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : null}
             </>
-          ) : (
+          ) : rightPanelTab === 'chat' ? (
             <div className="mt-4 rounded-[1.2rem] border border-dashed border-white/10 bg-black/30 p-4 text-white/68">
               {preview ? 'Preview statique : le chat n’est pas branché hors backend.' : !state.currentUser.isLoggedIn ? 'Connecte-toi pour chatter avec la room.' : 'Le chat live attend son formulaire.'}
             </div>
-          )}
+          ) : null}
         </div>
       </div>
 
