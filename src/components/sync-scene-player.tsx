@@ -82,6 +82,46 @@ function getInitials(label: string) {
     .join('');
 }
 
+function getAvatarPalette(seed: string) {
+  const palettes = [
+    {
+      aura: 'from-cyan-300/40 via-sky-400/10 to-transparent',
+      hair: 'bg-slate-950',
+      skin: 'bg-[#f3c6a6]',
+      body: 'bg-cyan-300',
+      accent: 'bg-cyan-100',
+      badge: 'border-cyan-300/30 bg-cyan-300/10 text-cyan-50',
+    },
+    {
+      aura: 'from-fuchsia-300/35 via-rose-400/12 to-transparent',
+      hair: 'bg-[#2b152a]',
+      skin: 'bg-[#d8a27b]',
+      body: 'bg-fuchsia-300',
+      accent: 'bg-rose-100',
+      badge: 'border-fuchsia-300/30 bg-fuchsia-300/10 text-fuchsia-50',
+    },
+    {
+      aura: 'from-amber-300/40 via-orange-300/12 to-transparent',
+      hair: 'bg-[#382314]',
+      skin: 'bg-[#f0be8f]',
+      body: 'bg-amber-300',
+      accent: 'bg-yellow-50',
+      badge: 'border-amber-300/30 bg-amber-300/10 text-amber-50',
+    },
+    {
+      aura: 'from-emerald-300/35 via-teal-300/12 to-transparent',
+      hair: 'bg-[#15352f]',
+      skin: 'bg-[#d9b18a]',
+      body: 'bg-emerald-300',
+      accent: 'bg-emerald-50',
+      badge: 'border-emerald-300/30 bg-emerald-300/10 text-emerald-50',
+    },
+  ];
+
+  const score = Array.from(seed).reduce((acc, char) => acc + char.charCodeAt(0), 0);
+  return palettes[score % palettes.length];
+}
+
 function ensureYouTubeApi() {
   if (typeof window === 'undefined') {
     return Promise.reject(new Error('window indisponible'));
@@ -387,6 +427,7 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
   }, [playback]);
 
   const progressWidth = Math.min(100, ((liveOffset % 240) / 240) * 100);
+  const ownerPalette = getAvatarPalette(ownerLabel);
 
   return (
     <div className="grid gap-5 xl:grid-cols-[minmax(0,1.62fr)_360px]">
@@ -414,13 +455,31 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
           </div>
 
           <div className="relative z-[1] p-4">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.35fr)_280px]">
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1.18fr)_320px]">
               <div className="space-y-4">
-                <div className="relative overflow-hidden rounded-[1.45rem] border border-fuchsia-300/15 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.6)]">
-                  <div className="aspect-video w-full bg-black">
-                    {currentTrack ? <div ref={playerHostRef} className="h-full w-full [&_iframe]:h-full [&_iframe]:w-full" /> : <div className="flex h-full items-center justify-center text-white/55">Ajoute un titre pour lancer la scène.</div>}
+                <div className="relative overflow-hidden rounded-[1.6rem] border border-white/10 bg-[radial-gradient(circle_at_top,#ffffff12,transparent_30%),linear-gradient(180deg,#09080d,#040307)] shadow-[0_18px_60px_rgba(0,0,0,0.6)]">
+                  <div className="pointer-events-none absolute inset-x-0 bottom-0 z-[2] h-40 bg-[linear-gradient(180deg,transparent,rgba(0,0,0,0.84)_45%,rgba(0,0,0,0.98))]" />
+                  <div className="absolute inset-x-[6%] bottom-16 z-[3] h-10 rounded-[999px] border border-gold/20 bg-[linear-gradient(180deg,rgba(214,158,46,0.34),rgba(74,40,10,0.82))] shadow-[0_0_40px_rgba(234,179,8,0.12)]" />
+                  <div className="absolute inset-x-[10%] bottom-12 z-[3] h-16 rounded-[1.8rem] border border-gold/20 bg-[linear-gradient(180deg,rgba(60,30,14,0.95),rgba(12,8,8,0.98))] shadow-[0_14px_40px_rgba(0,0,0,0.48)]" />
+                  <div className="absolute bottom-[5.2rem] left-1/2 z-[4] flex -translate-x-1/2 flex-col items-center">
+                    <div className={`absolute -top-10 h-28 w-28 rounded-full bg-gradient-to-b ${ownerPalette.aura} blur-2xl`} />
+                    <div className="relative h-36 w-28">
+                      <div className={`absolute left-1/2 top-3 h-10 w-10 -translate-x-1/2 rounded-full border border-white/15 ${ownerPalette.skin}`} />
+                      <div className={`absolute left-1/2 top-1 h-5 w-11 -translate-x-1/2 rounded-t-full ${ownerPalette.hair}`} />
+                      <div className={`absolute bottom-6 left-1/2 h-20 w-24 -translate-x-1/2 rounded-[1.7rem_1.7rem_1rem_1rem] ${ownerPalette.body} shadow-[0_0_25px_rgba(255,255,255,0.12)]`} />
+                      <div className={`absolute bottom-12 left-2 h-4 w-9 rounded-full ${ownerPalette.accent} opacity-80`} />
+                      <div className={`absolute bottom-12 right-2 h-4 w-9 rounded-full ${ownerPalette.accent} opacity-80`} />
+                    </div>
+                    <span className={`mt-2 rounded-full border px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] ${ownerPalette.badge}`}>DJ live</span>
                   </div>
-                  <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/95 via-black/55 to-transparent px-4 pb-4 pt-10">
+                  <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between gap-3 bg-gradient-to-b from-black/80 to-transparent px-4 py-3 text-xs uppercase tracking-[0.22em] text-white/72">
+                    <span>DJ booth · {ownerLabel}</span>
+                    <span>{syncedCount} sync en live</span>
+                  </div>
+                  <div className="aspect-video w-full bg-black/90">
+                    {currentTrack ? <div ref={playerHostRef} className="h-full w-full [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:opacity-70" /> : <div className="flex h-full items-center justify-center text-white/55">Ajoute un titre pour lancer la scène.</div>}
+                  </div>
+                  <div className="absolute inset-x-0 bottom-0 z-[5] px-4 pb-4 pt-10">
                     <div className="flex items-center justify-between gap-3 text-sm text-white/80">
                       <span>Timing room · {formatClock(liveOffset)}</span>
                       <span>{canControl ? 'Mode DJ' : 'Audience sync'}</span>
@@ -431,28 +490,32 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
                   </div>
                 </div>
 
-                <div className="rounded-[1.35rem] border border-fuchsia-300/10 bg-black/35 px-4 py-4 backdrop-blur-sm">
+                <div className="rounded-[1.45rem] border border-fuchsia-300/10 bg-[linear-gradient(180deg,rgba(12,11,18,0.94),rgba(6,6,10,0.94))] px-4 py-4 backdrop-blur-sm">
                   <div className="mb-3 flex items-center justify-between gap-3">
                     <p className="text-xs uppercase tracking-[0.26em] text-white/48">Crowd</p>
                     <p className="text-xs text-white/55">{syncedCount > 0 ? `${syncedCount} personne${syncedCount > 1 ? 's' : ''} calée${syncedCount > 1 ? 's' : ''}` : 'Le floor attend du monde'}</p>
                   </div>
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex min-h-[10rem] items-end gap-2 overflow-x-auto rounded-[1.2rem] border border-white/6 bg-[linear-gradient(180deg,rgba(255,255,255,0.03),rgba(255,255,255,0.01))] px-3 pb-3 pt-6">
                     {crowdMembers.length > 0 ? (
-                      crowdMembers.map((member, index) => (
-                        <div
-                          key={member.id}
-                          className={`group flex items-center gap-2 rounded-full border px-3 py-2 transition ${member.online ? 'border-cyan-300/25 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,0.12)]' : 'border-white/10 bg-white/5'}`}
-                          style={{ transform: `translateY(${playback?.state === 'playing' ? (index % 2 === 0 ? '-2px' : '2px') : '0px'})` }}
-                        >
-                          <span className={`flex h-9 w-9 items-center justify-center rounded-full text-xs font-black ${member.online ? 'bg-cyan-300 text-black' : 'bg-white/10 text-white/70'}`}>
-                            {getInitials(member.label) || '??'}
-                          </span>
-                          <div>
-                            <p className="max-w-[7rem] truncate text-sm font-semibold text-white/85">{member.label}</p>
-                            <p className="text-[11px] uppercase tracking-[0.18em] text-white/45">{member.online ? 'on beat' : 'idle'}</p>
+                      crowdMembers.map((member, index) => {
+                        const palette = getAvatarPalette(member.label);
+                        const bounce = playback?.state === 'playing' ? 4 + ((index + Math.floor(liveOffset)) % 3) * 4 : 0;
+
+                        return (
+                          <div key={member.id} className="group flex min-w-[4.6rem] flex-col items-center" style={{ transform: `translateY(-${bounce}px)` }}>
+                            <div className={`absolute h-16 w-16 rounded-full bg-gradient-to-b ${palette.aura} opacity-70 blur-2xl transition ${member.online ? 'scale-100' : 'scale-75 opacity-30'}`} />
+                            <div className="relative h-24 w-16">
+                              <div className={`absolute left-1/2 top-1 h-7 w-7 -translate-x-1/2 rounded-full border border-white/12 ${palette.skin}`} />
+                              <div className={`absolute left-1/2 top-0 h-4 w-8 -translate-x-1/2 rounded-t-full ${palette.hair}`} />
+                              <div className={`absolute bottom-1 left-1/2 h-14 w-12 -translate-x-1/2 rounded-[1rem_1rem_0.7rem_0.7rem] ${member.online ? palette.body : 'bg-white/15'} transition`} />
+                              <div className={`absolute bottom-8 left-0 h-3 w-5 rounded-full ${member.online ? palette.accent : 'bg-white/10'} opacity-80`} />
+                              <div className={`absolute bottom-8 right-0 h-3 w-5 rounded-full ${member.online ? palette.accent : 'bg-white/10'} opacity-80`} />
+                            </div>
+                            <p className="mt-2 max-w-[4.8rem] truncate text-center text-[11px] font-semibold text-white/82">{member.label}</p>
+                            <p className="text-[10px] uppercase tracking-[0.16em] text-white/40">{member.online ? 'on beat' : 'idle'}</p>
                           </div>
-                        </div>
-                      ))
+                        );
+                      })
                     ) : (
                       <div className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/55">La crowd est encore vide.</div>
                     )}
@@ -461,12 +524,18 @@ export function SyncScenePlayer({ track, playback, canControl, members, ownerLab
               </div>
 
               <div className="rounded-[1.4rem] border border-gold/15 bg-[linear-gradient(180deg,rgba(20,14,24,0.95),rgba(9,7,15,0.92))] p-4 backdrop-blur-sm shadow-[inset_0_1px_0_rgba(255,255,255,0.04)]">
-                <div className="mb-4 flex items-center gap-4">
-                  <div className="relative flex h-20 w-20 items-center justify-center rounded-[1.25rem] border border-gold/35 bg-[linear-gradient(180deg,#4a3210,#171009)] text-2xl font-black text-gold shadow-[0_0_35px_rgba(234,179,8,0.24)] before:absolute before:inset-x-3 before:top-2 before:h-[2px] before:rounded-full before:bg-gold/50">{getInitials(ownerLabel) || 'DJ'}</div>
-                  <div className="min-w-0">
-                    <p className="text-xs uppercase tracking-[0.24em] text-white/45">Now performing</p>
-                    <h5 className="mt-1 truncate text-xl font-black text-white">{ownerLabel}</h5>
-                    <p className="mt-1 text-sm text-white/58">{canControl ? 'Tu pilotes la scène.' : 'Tu suis le set en audience sync.'}</p>
+                <div className="mb-4 rounded-[1.4rem] border border-gold/15 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-white/45">Now performing</p>
+                  <div className="mt-4 flex items-center gap-4">
+                    <div className="relative h-24 w-20 overflow-hidden rounded-[1.3rem] border border-gold/30 bg-[linear-gradient(180deg,#2f1d11,#120d0b)]">
+                      <div className={`absolute left-1/2 top-3 h-8 w-8 -translate-x-1/2 rounded-full ${ownerPalette.skin}`} />
+                      <div className={`absolute left-1/2 top-2 h-4 w-9 -translate-x-1/2 rounded-t-full ${ownerPalette.hair}`} />
+                      <div className={`absolute bottom-3 left-1/2 h-12 w-14 -translate-x-1/2 rounded-[1rem] ${ownerPalette.body}`} />
+                    </div>
+                    <div className="min-w-0">
+                      <h5 className="truncate text-xl font-black text-white">{ownerLabel}</h5>
+                      <p className="mt-1 text-sm text-white/58">{canControl ? 'Tu pilotes la scène.' : 'Tu suis le set en audience sync.'}</p>
+                    </div>
                   </div>
                 </div>
 

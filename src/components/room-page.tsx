@@ -148,24 +148,49 @@ export function RoomPageView({
 
       <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_340px]">
         <aside className="space-y-5">
-          <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(14,13,19,0.96),rgba(10,10,14,0.95))] p-5">
-            <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Audience</p>
-            <h3 className="mt-3 text-2xl font-black text-white">Dans la room</h3>
-            <p className="mt-2 text-sm text-white/58">{state.presence?.enabled ? `${onlineMembers} présence${onlineMembers > 1 ? 's' : ''} live détectée${state.presence.connected ? 's' : ''}.` : 'Roster statique pour l’instant.'}</p>
-            <div className="mt-5 space-y-3">
-              {state.members.length > 0 ? (
-                state.members.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className={`h-2.5 w-2.5 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.9)]' : 'bg-white/20'}`} />
-                      <span className="truncate font-medium text-white/88">{member.label}</span>
-                    </div>
-                    <span className={`rounded-full border px-3 py-1 text-xs ${roleAccent[member.role]}`}>{roleLabels[member.role]}</span>
-                  </div>
-                ))
-              ) : (
-                <div className="rounded-[1.25rem] border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/60">Aucun roster exploitable pour l’instant.</div>
-              )}
+          <div className="overflow-hidden rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(14,13,19,0.98),rgba(8,8,11,0.98))] shadow-[0_16px_45px_rgba(0,0,0,0.28)]">
+            <div className="border-b border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),transparent)] px-5 py-4">
+              <p className="text-[11px] uppercase tracking-[0.3em] text-fuchsia-200/72">Sidebar</p>
+              <h3 className="mt-2 text-2xl font-black text-white">Room info</h3>
+            </div>
+
+            <div className="space-y-4 p-5">
+              <div className="rounded-[1.4rem] border border-white/8 bg-black/25 p-4">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-white/42">Audience</p>
+                <p className="mt-2 text-2xl font-black text-white">{state.presence?.enabled ? state.presence.connected ? state.presence.onlineCount : onlineMembers : onlineMembers}</p>
+                <p className="mt-1 text-sm text-white/58">{state.presence?.enabled ? `${onlineMembers} présence${onlineMembers > 1 ? 's' : ''} live détectée${state.presence.connected ? 's' : ''}.` : 'Roster statique pour l’instant.'}</p>
+              </div>
+
+              <div className="rounded-[1.4rem] border border-white/8 bg-black/25 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <p className="text-[11px] uppercase tracking-[0.22em] text-white/42">Dans la room</p>
+                  <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-[0.16em] text-white/55">{state.members.length}</span>
+                </div>
+                <div className="mt-4 space-y-3">
+                  {state.members.length > 0 ? (
+                    state.members.map((member) => (
+                      <div key={member.id} className="flex items-center justify-between rounded-[1rem] border border-white/8 bg-white/[0.03] px-3 py-3">
+                        <div className="flex min-w-0 items-center gap-3">
+                          <span className={`h-2.5 w-2.5 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.9)]' : 'bg-white/20'}`} />
+                          <span className="truncate font-medium text-white/88">{member.label}</span>
+                        </div>
+                        <span className={`rounded-full border px-3 py-1 text-xs ${roleAccent[member.role]}`}>{roleLabels[member.role]}</span>
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[1.25rem] border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/60">Aucun roster exploitable pour l’instant.</div>
+                  )}
+                </div>
+              </div>
+
+              <div className="rounded-[1.4rem] border border-gold/15 bg-gold/10 p-4 text-sm text-white/74">
+                <p className="text-[11px] uppercase tracking-[0.22em] text-gold/70">Room stats</p>
+                <div className="mt-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3"><span>Queue</span><span className="font-semibold text-white">{queueItems.length}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span>Booth</span><span className="font-semibold text-white">{state.room.ownerLabel}</span></div>
+                  <div className="flex items-center justify-between gap-3"><span>Accès</span><span className="font-semibold text-white">{isPrivate ? 'Privée' : 'Publique'}</span></div>
+                </div>
+              </div>
             </div>
           </div>
 
