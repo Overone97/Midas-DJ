@@ -85,48 +85,48 @@ export function RoomPageView({
   const chatMessages = state.chat?.messages ?? [];
 
   return (
-    <section className="space-y-6">
-      <div className="overflow-hidden rounded-[2.2rem] border border-fuchsia-400/15 bg-[radial-gradient(circle_at_top,#fb71851c,transparent_26%),radial-gradient(circle_at_85%_15%,#22d3ee18,transparent_24%),linear-gradient(180deg,#170f23,#09070f)] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)]">
-        <div className="flex flex-col gap-5 xl:flex-row xl:items-end xl:justify-between">
+    <section className="space-y-4">
+      <div className="overflow-hidden rounded-[1.6rem] border border-fuchsia-400/15 bg-[radial-gradient(circle_at_top,#fb71851c,transparent_26%),radial-gradient(circle_at_85%_15%,#22d3ee18,transparent_24%),linear-gradient(180deg,#170f23,#09070f)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
-            <p className="text-xs uppercase tracking-[0.32em] text-fuchsia-200/72">Plug floor</p>
-            <div className="mt-3 flex flex-wrap items-center gap-3">
-              <h2 className="text-4xl font-black text-white">{state.room.name}</h2>
-              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs uppercase tracking-[0.22em] text-white/70">{state.room.type}</span>
-              <span className={`rounded-full border px-3 py-1 text-xs font-semibold ${roleAccent[state.currentUser.role]}`}>{roleLabels[state.currentUser.role]}</span>
+            <p className="text-[10px] uppercase tracking-[0.28em] text-fuchsia-200/72">Plug floor</p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <h2 className="text-2xl font-black text-white">{state.room.name}</h2>
+              <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.18em] text-white/70">{state.room.type}</span>
+              <span className={`rounded-full border px-2.5 py-1 text-[10px] font-semibold ${roleAccent[state.currentUser.role]}`}>{roleLabels[state.currentUser.role]}</span>
             </div>
-            <p className="mt-3 max-w-4xl text-white/70">{state.room.description}</p>
+            <p className="mt-2 max-w-4xl text-sm text-white/66">{state.room.description}</p>
           </div>
 
-          <div className="grid gap-2 sm:grid-cols-2 xl:min-w-[25rem]">
-            <div className="rounded-[1.4rem] border border-white/10 bg-black/20 px-4 py-3 text-sm text-white/72">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-white/45">Accès</p>
-              <p className="mt-2 text-lg font-black text-white">{missing ? 'Introuvable' : denied ? 'Refusé' : preview ? 'Preview statique' : 'Disponible'}</p>
+          <div className="grid gap-2 sm:grid-cols-2 xl:min-w-[20rem]">
+            <div className="rounded-[1rem] border border-white/10 bg-black/20 px-3 py-2 text-sm text-white/72">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-white/45">Accès</p>
+              <p className="mt-1 text-sm font-black text-white">{missing ? 'Introuvable' : denied ? 'Refusé' : preview ? 'Preview statique' : 'Disponible'}</p>
             </div>
-            <div className="rounded-[1.4rem] border border-emerald-400/15 bg-emerald-400/10 px-4 py-3 text-sm text-emerald-50/90">
-              <p className="text-[11px] uppercase tracking-[0.24em] text-emerald-100/60">Présence</p>
-              <p className="mt-2 text-lg font-black">{state.presence?.enabled ? state.presence.connected ? `${state.presence.onlineCount} en ligne` : 'connexion…' : `${onlineMembers} visibles`}</p>
+            <div className="rounded-[1rem] border border-emerald-400/15 bg-emerald-400/10 px-3 py-2 text-sm text-emerald-50/90">
+              <p className="text-[10px] uppercase tracking-[0.22em] text-emerald-100/60">Présence</p>
+              <p className="mt-1 text-sm font-black">{state.presence?.enabled ? state.presence.connected ? `${state.presence.onlineCount} en ligne` : 'connexion…' : `${onlineMembers} visibles`}</p>
             </div>
           </div>
         </div>
 
-        <div className="mt-5 flex flex-wrap gap-3 text-sm text-white/62">
-          <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2">slug · {state.room.slug}</span>
-          <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2">owner · {state.room.ownerLabel}</span>
-          {typeof state.room.listenerCount === 'number' ? <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2">audience · {state.room.listenerCount}</span> : null}
-          {typeof state.room.queueDepth === 'number' ? <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2">queue · {state.room.queueDepth} titres</span> : null}
-          {state.playback ? <span className="rounded-full border border-gold/20 bg-gold/10 px-4 py-2 text-gold">sync · {state.playback.state}</span> : null}
-          {state.currentUser.isLoggedIn ? <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-4 py-2 text-cyan-50">session · {state.currentUser.email}</span> : null}
+        <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-white/62">
+          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">slug · {state.room.slug}</span>
+          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">owner · {state.room.ownerLabel}</span>
+          {typeof state.room.listenerCount === 'number' ? <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">audience · {state.room.listenerCount}</span> : null}
+          {typeof state.room.queueDepth === 'number' ? <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">queue · {state.room.queueDepth} titres</span> : null}
+          {state.playback ? <span className="rounded-full border border-gold/20 bg-gold/10 px-3 py-1 text-gold">sync · {state.playback.state}</span> : null}
+          {state.currentUser.isLoggedIn ? <span className="rounded-full border border-cyan-300/15 bg-cyan-300/10 px-3 py-1 text-cyan-50">session · {state.currentUser.email}</span> : null}
         </div>
       </div>
 
-      <div className="rounded-[2.2rem] border border-fuchsia-400/12 bg-[linear-gradient(180deg,rgba(12,10,18,0.96),rgba(7,6,11,0.95))] p-5 shadow-[0_22px_70px_rgba(0,0,0,0.35)]">
-        <div className="mb-4 flex items-center justify-between gap-4">
+      <div className="rounded-[1.8rem] border border-fuchsia-400/12 bg-[linear-gradient(180deg,rgba(12,10,18,0.96),rgba(7,6,11,0.95))] p-3 shadow-[0_22px_70px_rgba(0,0,0,0.35)]">
+        <div className="mb-3 flex items-center justify-between gap-4">
           <div>
-            <p className="text-xs uppercase tracking-[0.28em] text-fuchsia-200/72">Main stage</p>
-            <h3 className="mt-2 text-3xl font-black text-white">Scène synchronisée</h3>
+            <p className="text-[10px] uppercase tracking-[0.24em] text-fuchsia-200/72">Main stage</p>
+            <h3 className="mt-1 text-xl font-black text-white">Scène synchronisée</h3>
           </div>
-          <span className="rounded-full border border-white/10 bg-black/20 px-4 py-2 text-xs uppercase tracking-[0.2em] text-white/65">{currentTrack ? currentTrack.status : 'placeholder'}</span>
+          <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/65">{currentTrack ? currentTrack.status : 'placeholder'}</span>
         </div>
 
         {currentTrack ? (
@@ -146,7 +146,7 @@ export function RoomPageView({
         )}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[300px_minmax(0,1fr)_340px]">
+      <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)_280px]">
         <aside className="space-y-5">
           <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(14,13,19,0.96),rgba(10,10,14,0.95))] p-5">
             <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Audience</p>
