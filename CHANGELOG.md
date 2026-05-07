@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.34] - 2026-05-07
+
+### Added
+- Table `votes` ajoutée à la publication `supabase_realtime` pour que les réactions remontent enfin en live sans refresh
+
+### Fixed
+- Recalage playback relancé quand le player devient réellement prêt, pour mieux aligner un utilisateur qui rejoint une room déjà en cours
+- Chat room qui re-scroll automatiquement sur les nouveaux messages tant que l’utilisateur est resté au bas de la conversation
+
 ## [1.6.33] - 2026-05-07
 
 ### Fixed
