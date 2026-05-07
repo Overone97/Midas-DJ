@@ -1,6 +1,6 @@
 # Midas DJ
 
-**Version:** 1.6.34
+**Version:** 1.6.35
 
 Midas DJ est une plateforme d’écoute sociale en temps réel, inspirée de plug.dj et repensée pour le web moderne.
 
@@ -14,12 +14,13 @@ Créer une expérience où l’on peut :
 - prendre la main comme DJ à tour de rôle ;
 - voter, skipper et modérer sans transformer la room en zoo.
 
-## Scope de la release 1.6.34
+## Scope de la release 1.6.35
 
-Cette release recolle enfin un peu mieux à la promesse live de la room :
-- **recalage client renforcé à l’arrivée dans la room** quand le player devient prêt ;
-- **réactions branchées en vrai temps réel** via la publication Realtime de `votes` ;
-- **chat qui suit automatiquement les nouveaux messages** tant que l’utilisateur reste en bas de la conversation.
+Cette release rend enfin la fosse plus vivante façon plug.dj :
+- **réactions par utilisateur exposées côté room** pour savoir qui woot, grab ou meh ;
+- **avatars qui dansent individuellement** quand leur propriétaire fait un Woot ;
+- **grab visible dans la fosse** avec main levée + badge ;
+- **alignement crowd plus propre** pour que les avatars soient côte à côte au lieu d’un rendu trop flottant.
 
 ## Stack retenue
 

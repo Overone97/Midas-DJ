@@ -191,11 +191,16 @@ function summarizeReactions(rows: VoteRow[], currentQueueItemId?: string | null,
     (acc, row) => ({ ...acc, [row.type]: acc[row.type] + 1 }),
     { ...emptyReactionCounts },
   );
+  const userReactions = relevant.reduce<Record<string, RoomReactionType>>((acc, row) => {
+    acc[row.user_id] = row.type;
+    return acc;
+  }, {});
 
   return {
     currentQueueItemId,
     counts,
     currentUserReaction: relevant.find((row) => row.user_id === currentUserId)?.type ?? null,
+    userReactions,
   } satisfies RoomReactionSummary;
 }
 
@@ -879,11 +884,15 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
     setState((current) => {
       const counts = { ...(current.reactions?.counts ?? emptyReactionCounts) };
+      const userReactions = { ...(current.reactions?.userReactions ?? {}) };
       if (previousReaction) {
         counts[previousReaction] = Math.max(0, counts[previousReaction] - 1);
       }
       if (nextReaction) {
         counts[nextReaction] += 1;
+        userReactions[user.id] = nextReaction;
+      } else {
+        delete userReactions[user.id];
       }
 
       return {
@@ -892,6 +901,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           currentQueueItemId,
           counts,
           currentUserReaction: nextReaction,
+          userReactions,
         },
       };
     });

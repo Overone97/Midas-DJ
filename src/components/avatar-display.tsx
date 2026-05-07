@@ -12,12 +12,16 @@ export function AvatarDisplay({
   size = 'md',
   showLabel = false,
   badge,
+  mood = 'idle',
+  raisedHand = false,
 }: {
   avatar?: Partial<AvatarConfig> | null;
   label: string;
   size?: 'sm' | 'md' | 'lg';
   showLabel?: boolean;
   badge?: string;
+  mood?: 'idle' | 'groove' | 'hype';
+  raisedHand?: boolean;
 }) {
   const resolved = normalizeAvatar(avatar);
   const theme = avatarColorThemes[resolved.outfitColor];
@@ -25,10 +29,12 @@ export function AvatarDisplay({
   const earScale = size === 'sm' ? 'h-3 w-3' : size === 'lg' ? 'h-6 w-6' : 'h-4 w-4';
   const faceScale = size === 'sm' ? 'h-7 w-7' : size === 'lg' ? 'h-14 w-14' : 'h-10 w-10';
   const bodyScale = size === 'sm' ? 'h-5 w-6' : size === 'lg' ? 'h-9 w-11' : 'h-7 w-9';
+  const armLift = raisedHand ? (size === 'lg' ? '-top-1 -right-3 h-8 w-2' : '-top-1 -right-2 h-6 w-1.5') : '';
+  const wrapperMotion = mood === 'hype' ? 'avatar-hype' : mood === 'groove' ? 'avatar-groove' : 'avatar-idle';
 
   return (
     <div className={`flex items-center gap-3 ${showLabel ? '' : 'justify-center'}`}>
-      <div className="relative">
+      <div className={`relative ${wrapperMotion}`}>
         <div className={`absolute inset-0 rounded-full blur-xl ${theme.glow}`} />
         <div className={`relative ${scale} rounded-full border border-white/12 bg-[linear-gradient(180deg,rgba(11,14,25,0.95),rgba(5,7,12,0.98))]`}>
           <div className="absolute inset-x-0 -top-1 flex items-start justify-center gap-1">
@@ -59,6 +65,7 @@ export function AvatarDisplay({
           </div>
 
           <div className="absolute inset-0 flex flex-col items-center justify-center">
+            {raisedHand ? <span className={`absolute rounded-full bg-white/85 shadow-[0_0_10px_rgba(255,255,255,0.28)] rotate-[-18deg] ${armLift}`} /> : null}
             <div
               className={`${faceScale} rounded-full ${
                 resolved.species === 'panda'

@@ -78,6 +78,62 @@ a {
   animation: crowd-bob 2.6s ease-in-out infinite;
 }
 
+@keyframes avatar-idle {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-1px) rotate(-1deg);
+  }
+}
+
+@keyframes avatar-groove {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-2deg) scale(1);
+  }
+  25% {
+    transform: translateY(-5px) rotate(2deg) scale(1.01);
+  }
+  50% {
+    transform: translateY(0) rotate(-1deg) scale(1);
+  }
+  75% {
+    transform: translateY(-7px) rotate(3deg) scale(1.02);
+  }
+}
+
+@keyframes avatar-hype {
+  0%,
+  100% {
+    transform: translateY(0) rotate(-4deg) scale(1);
+  }
+  20% {
+    transform: translateY(-8px) rotate(5deg) scale(1.03);
+  }
+  50% {
+    transform: translateY(0) rotate(-2deg) scale(1);
+  }
+  80% {
+    transform: translateY(-10px) rotate(6deg) scale(1.04);
+  }
+}
+
+.avatar-idle {
+  animation: avatar-idle 2.8s ease-in-out infinite;
+}
+
+.avatar-groove {
+  animation: avatar-groove 1.15s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
+.avatar-hype {
+  animation: avatar-hype 0.82s ease-in-out infinite;
+  transform-origin: center bottom;
+}
+
 @keyframes reaction-rise {
   0% {
     opacity: 0;

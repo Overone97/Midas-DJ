@@ -72,6 +72,7 @@ export type RoomReactionSummary = {
   currentQueueItemId?: string | null;
   counts: Record<RoomReactionType, number>;
   currentUserReaction?: RoomReactionType | null;
+  userReactions?: Record<string, RoomReactionType>;
 };
 
 export type RoomPageState = {
