@@ -26,6 +26,7 @@ type ScenePlayerProps = {
   canControl: boolean;
   members: RoomMemberPreview[];
   ownerLabel: string;
+  layoutMode?: 'default' | 'wide';
   onTogglePlayback: (nextState: 'playing' | 'paused', currentOffset: number) => void;
   onNextTrack: () => void;
   onStopPlayback: () => void;
@@ -92,7 +93,7 @@ function ensureYouTubeApi() {
   });
 }
 
-export function SyncScenePlayer({ track, playback, reactions, canControl, members, ownerLabel, onTogglePlayback, onNextTrack, onStopPlayback }: ScenePlayerProps) {
+export function SyncScenePlayer({ track, playback, reactions, canControl, members, ownerLabel, layoutMode = 'default', onTogglePlayback, onNextTrack, onStopPlayback }: ScenePlayerProps) {
   const playerHostRef = useRef<HTMLDivElement | null>(null);
   const adapterRef = useRef<YouTubeAudioAdapter | null>(null);
   const engineRef = useRef(new AudioEngine());
@@ -110,6 +111,7 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
   const djMember = members.find((member) => member.role === 'owner');
   const pitAssignments = assignPitSlots(crowdMembers);
   const liveOffset = engineState.playbackState === 'playing' ? engineState.targetOffsetSeconds : engineState.actualOffsetSeconds;
+  const isWideLayout = layoutMode === 'wide';
 
   const stageBadge = useMemo(() => {
     if (!playback) {
@@ -360,8 +362,8 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
 
         <div className="relative z-[1] p-2 md:p-3">
           <div>
-            <div className="relative min-h-[44rem] overflow-hidden rounded-[1.6rem] border border-fuchsia-300/15 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.6)] xl:min-h-[50rem]">
-              <div className="absolute inset-x-[12%] top-6 z-[1] h-[39%] overflow-hidden rounded-[1.55rem] border border-white/10 bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_70px_rgba(0,0,0,0.45)]">
+            <div className={`relative overflow-hidden rounded-[1.6rem] border border-fuchsia-300/15 bg-black shadow-[0_18px_60px_rgba(0,0,0,0.6)] ${isWideLayout ? 'min-h-[48rem] xl:min-h-[56rem] 2xl:min-h-[60rem]' : 'min-h-[44rem] xl:min-h-[50rem]'}`}>
+              <div className={`absolute top-6 z-[1] h-[39%] overflow-hidden rounded-[1.55rem] border border-white/10 bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_70px_rgba(0,0,0,0.45)] ${isWideLayout ? 'inset-x-[8%]' : 'inset-x-[12%]'}`}>
                 <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-white/60">
                   <span>Screen wall</span>
                   <span>{currentTrack ? (playerReady ? 'live video' : 'loading') : 'offline'}</span>
@@ -371,23 +373,23 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                 </div>
               </div>
 
-              <div className="absolute inset-x-[4%] bottom-[14.6rem] z-[2] h-12 rounded-[999px] bg-[linear-gradient(90deg,transparent,rgba(255,207,120,0.18),transparent)] blur-md" />
-              <div className="absolute inset-x-[9%] bottom-[13.7rem] z-[3] h-3 rounded-full bg-[linear-gradient(90deg,transparent,rgba(255,207,120,0.7),transparent)]" />
-              <div className="absolute inset-x-[13%] bottom-[12.2rem] z-[3] h-10 rounded-[999px] border border-gold/20 bg-[linear-gradient(180deg,rgba(195,137,45,0.42),rgba(63,35,13,0.88))]" />
-              <div className="absolute inset-x-[14%] bottom-[9.8rem] z-[4] h-[7.2rem] rounded-[1.8rem_1.8rem_1rem_1rem] border border-[#7c5521]/60 bg-[linear-gradient(180deg,rgba(66,39,17,0.98),rgba(15,10,10,0.98))] shadow-[0_18px_28px_rgba(0,0,0,0.5)]" />
-              <div className="absolute inset-x-[18%] bottom-[11.9rem] z-[5] flex items-center justify-between px-5 text-[10px] uppercase tracking-[0.18em] text-gold/72">
+              <div className={`absolute z-[2] h-12 rounded-[999px] bg-[linear-gradient(90deg,transparent,rgba(255,207,120,0.18),transparent)] blur-md ${isWideLayout ? 'inset-x-[2%] bottom-[16rem]' : 'inset-x-[4%] bottom-[14.6rem]'}`} />
+              <div className={`absolute z-[3] h-3 rounded-full bg-[linear-gradient(90deg,transparent,rgba(255,207,120,0.7),transparent)] ${isWideLayout ? 'inset-x-[6%] bottom-[15.1rem]' : 'inset-x-[9%] bottom-[13.7rem]'}`} />
+              <div className={`absolute z-[3] h-10 rounded-[999px] border border-gold/20 bg-[linear-gradient(180deg,rgba(195,137,45,0.42),rgba(63,35,13,0.88))] ${isWideLayout ? 'inset-x-[11%] bottom-[13.6rem]' : 'inset-x-[13%] bottom-[12.2rem]'}`} />
+              <div className={`absolute z-[4] h-[7.2rem] rounded-[1.8rem_1.8rem_1rem_1rem] border border-[#7c5521]/60 bg-[linear-gradient(180deg,rgba(66,39,17,0.98),rgba(15,10,10,0.98))] shadow-[0_18px_28px_rgba(0,0,0,0.5)] ${isWideLayout ? 'inset-x-[12%] bottom-[11.2rem]' : 'inset-x-[14%] bottom-[9.8rem]'}`} />
+              <div className={`absolute z-[5] flex items-center justify-between px-5 text-[10px] uppercase tracking-[0.18em] text-gold/72 ${isWideLayout ? 'inset-x-[15%] bottom-[13.3rem]' : 'inset-x-[18%] bottom-[11.9rem]'}`}>
                 <span>Deck A</span>
                 <span>Mixer</span>
                 <span>Deck B</span>
               </div>
 
-              <div className={`absolute left-1/2 bottom-[13.5rem] z-[6] flex -translate-x-1/2 flex-col items-center transition-transform duration-500 ${sceneMood === 'hype' ? 'translate-y-[-0.35rem]' : sceneMood === 'groove' ? 'translate-y-[-0.15rem]' : ''}`}>
+              <div className={`absolute left-1/2 z-[6] flex -translate-x-1/2 flex-col items-center transition-transform duration-500 ${isWideLayout ? 'bottom-[14.9rem]' : 'bottom-[13.5rem]'} ${sceneMood === 'hype' ? 'translate-y-[-0.35rem]' : sceneMood === 'groove' ? 'translate-y-[-0.15rem]' : ''}`}>
                 <div className={`absolute -top-10 h-32 w-32 rounded-full blur-2xl ${sceneMood === 'hype' ? 'bg-fuchsia-400/30' : 'bg-fuchsia-400/20'}`} />
                 <AvatarDisplay avatar={djMember?.avatar} label={ownerLabel} size="lg" badge="DJ" mood={sceneMood} raisedHand={reactions?.userReactions?.[djMember?.id ?? ''] === 'grab'} />
                 <span className="mt-2 rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-fuchsia-50">DJ booth</span>
               </div>
 
-              <div className="absolute inset-x-0 bottom-[19.4rem] z-[7] px-4">
+              <div className={`absolute inset-x-0 z-[7] px-4 ${isWideLayout ? 'bottom-[21.4rem]' : 'bottom-[19.4rem]'}`}>
                 <div className="bg-gradient-to-t from-black/80 to-transparent px-1 pb-2 pt-10">
                   <div className="flex items-center justify-between gap-3 text-sm text-white/80">
                     <span>Timing room · {formatClock(liveOffset)}</span>
@@ -399,7 +401,7 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                 </div>
               </div>
 
-              <div className="absolute inset-x-0 bottom-0 z-[8] rounded-t-[2.4rem] border-t border-white/8 bg-[linear-gradient(180deg,rgba(11,11,17,0.7),rgba(5,5,9,0.98))] px-5 pb-7 pt-8 backdrop-blur-sm">
+              <div className={`absolute inset-x-0 bottom-0 z-[8] rounded-t-[2.4rem] border-t border-white/8 bg-[linear-gradient(180deg,rgba(11,11,17,0.7),rgba(5,5,9,0.98))] px-5 pt-8 backdrop-blur-sm ${isWideLayout ? 'pb-9' : 'pb-7'}`}>
                 <div className="mb-3 flex items-center justify-between gap-3 text-xs uppercase tracking-[0.18em] text-white/50">
                   <span>Fosse</span>
                   <span>{crowdMembers.length > 0 ? `${crowdMembers.length} auditeurs visibles` : 'en attente'}</span>
@@ -413,7 +415,7 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                     ))}
                   </div>
                 ) : null}
-                <div className="relative rounded-[1.6rem] border border-cyan-300/8 bg-[linear-gradient(180deg,rgba(20,18,32,0.76),rgba(8,8,14,0.82))] px-4 py-5 shadow-[inset_0_0_24px_rgba(34,211,238,0.03)]">
+                <div className={`relative rounded-[1.6rem] border border-cyan-300/8 bg-[linear-gradient(180deg,rgba(20,18,32,0.76),rgba(8,8,14,0.82))] px-4 shadow-[inset_0_0_24px_rgba(34,211,238,0.03)] ${isWideLayout ? 'py-6' : 'py-5'}`}>
                   <div className="pointer-events-none absolute inset-x-6 bottom-[9.8rem] z-[9] h-28 overflow-hidden">
                     {reactionBursts.map((burst, index) => (
                       <div
@@ -434,7 +436,7 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                     <div className="rounded-full border border-fuchsia-300/12 bg-fuchsia-300/6 px-3 py-2 text-center text-fuchsia-100/55">crowd heat</div>
                     <div className="rounded-full border border-cyan-300/12 bg-cyan-300/6 px-3 py-2 text-center text-cyan-100/55">live listeners</div>
                   </div>
-                  <div className="relative min-h-[20rem] overflow-hidden rounded-[1.25rem] border border-white/6 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] pb-2">
+                  <div className={`relative overflow-hidden rounded-[1.25rem] border border-white/6 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] pb-2 ${isWideLayout ? 'min-h-[24rem]' : 'min-h-[20rem]'}`}>
                     {defaultPitSlots.map((slot) => {
                       const assigned = pitAssignments.find((entry) => entry.slot.id === slot.id);
                       const member = assigned?.member;
