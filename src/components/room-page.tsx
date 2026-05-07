@@ -65,6 +65,32 @@ type XpToast = {
   leveledUp?: boolean;
 };
 
+export type LeaderboardPanelState = {
+  status?: 'idle' | 'loading' | 'ready' | 'error';
+  error?: string | null;
+  payload?: LeaderboardPayload;
+  updatedAt?: string;
+};
+
+type LeaderboardListEntry = {
+  id: string;
+  label: string;
+  avatar?: AvatarConfig;
+  online: boolean;
+  xp: number;
+  level: number;
+  rank: number;
+  medal: string | null;
+  isCurrentUser: boolean;
+};
+
+type LeaderboardCurrentUserEntry = {
+  rank: number;
+  level: number;
+  score: number;
+  label: string;
+};
+
 const roleLabels: Record<RoomRole, string> = {
   owner: 'Owner',
   mod: 'Mod',
@@ -107,7 +133,8 @@ export function RoomPageView({
   avatarControls,
   reactionControls,
   xpFeed,
-  leaderboardData,
+  leaderboardState,
+  onLeaderboardTabChange,
 }: {
   state: RoomPageState;
   queueComposer?: QueueComposerProps;
@@ -116,7 +143,8 @@ export function RoomPageView({
   avatarControls?: AvatarControlsProps;
   reactionControls?: ReactionControlsProps;
   xpFeed?: XpToast[];
-  leaderboardData?: Partial<Record<LeaderboardTab, LeaderboardPayload>>;
+  leaderboardState?: Partial<Record<LeaderboardTab, LeaderboardPanelState>>;
+  onLeaderboardTabChange?: (tab: LeaderboardTab) => void;
 }) {
   const denied = state.status === 'forbidden';
   const missing = state.status === 'missing';
@@ -209,8 +237,14 @@ export function RoomPageView({
     return firstUnreadIndex === -1 ? 0 : displayedMessages.length - firstUnreadIndex;
   }, [displayedMessages, firstUnreadMessageId]);
 
-  const leaderboardEntries = useMemo(() => {
-    const serverEntries = leaderboardData?.[leaderboardTab]?.entries;
+  const activeLeaderboard = leaderboardState?.[leaderboardTab];
+
+  useEffect(() => {
+    onLeaderboardTabChange?.(leaderboardTab);
+  }, [leaderboardTab, onLeaderboardTabChange]);
+
+  const leaderboardEntries = useMemo<LeaderboardListEntry[]>(() => {
+    const serverEntries = activeLeaderboard?.payload?.entries;
     if (serverEntries && serverEntries.length > 0) {
       return serverEntries.map((entry) => ({
         id: entry.userId,
@@ -252,12 +286,44 @@ export function RoomPageView({
       .sort((a, b) => (b.xp - a.xp) || (Number(b.online) - Number(a.online)) || a.label.localeCompare(b.label))
       .slice(0, 50)
       .map((member, index) => ({
-        ...member,
+        id: member.id,
+        label: member.label,
+        avatar: member.avatar,
+        online: Boolean(member.online),
         rank: index + 1,
+        xp: member.xp,
+        level: member.level,
         medal: index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null,
         isCurrentUser: member.id === state.currentUser.id,
       }));
-  }, [leaderboardData, leaderboardTab, state.currentUser.avatar, state.currentUser.avatarLoadout, state.currentUser.avatarProgression, state.currentUser.email, state.currentUser.id, state.currentUser.label, state.currentUser.role, state.members]);
+  }, [activeLeaderboard, state.currentUser.avatar, state.currentUser.avatarLoadout, state.currentUser.avatarProgression, state.currentUser.email, state.currentUser.id, state.currentUser.label, state.currentUser.role, state.members]);
+
+  const leaderboardStatus = activeLeaderboard?.status ?? 'idle';
+  const leaderboardError = activeLeaderboard?.error ?? null;
+  const leaderboardUpdatedAt = activeLeaderboard?.updatedAt;
+  const currentUserLeaderboardEntry = useMemo<LeaderboardCurrentUserEntry | null>(() => {
+    const serverEntry = activeLeaderboard?.payload?.currentUserEntry;
+    if (serverEntry) {
+      return {
+        rank: serverEntry.rank,
+        level: serverEntry.level,
+        score: serverEntry.score,
+        label: serverEntry.username,
+      };
+    }
+
+    const fallbackEntry = leaderboardEntries.find((entry) => entry.isCurrentUser);
+    if (!fallbackEntry) {
+      return null;
+    }
+
+    return {
+      rank: fallbackEntry.rank,
+      level: fallbackEntry.level,
+      score: fallbackEntry.xp,
+      label: fallbackEntry.label,
+    };
+  }, [activeLeaderboard, leaderboardEntries]);
 
   const reactionSummary: RoomReactionSummary | undefined = state.reactions;
   const isWideLayout = layoutMode === 'wide';
@@ -447,21 +513,47 @@ export function RoomPageView({
               </div>
               <div className="flex items-center justify-between rounded-[1rem] border border-gold/15 bg-gold/10 px-3 py-2 text-[11px] text-gold/90">
                 <span>Classement room</span>
-                <span>{leaderboardEntries.length} / 50</span>
+                <span>{leaderboardStatus === 'loading' ? 'sync…' : `${leaderboardEntries.length} / 50`}</span>
               </div>
-              {leaderboardEntries.map((entry) => (
-                <div key={entry.id} className={`flex items-center justify-between rounded-[1rem] border px-3 py-3 ${entry.isCurrentUser ? 'border-fuchsia-300/25 bg-fuchsia-300/10' : 'border-white/8 bg-white/5'}`}>
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/25 text-xs font-black text-white/78">{entry.medal ?? `#${entry.rank}`}</div>
-                    <AvatarDisplay avatar={entry.avatar} label={entry.label} size="sm" />
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-semibold text-white/92">{entry.label}</p>
-                      <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">lvl {entry.level} · {formatXp(entry.xp)}</p>
+              {currentUserLeaderboardEntry ? (
+                <div className="rounded-[1rem] border border-fuchsia-300/20 bg-fuchsia-300/10 px-3 py-3 text-sm text-white/82">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-fuchsia-100/70">Ta place</p>
+                      <p className="mt-1 font-black text-white">#{currentUserLeaderboardEntry.rank} · lvl {currentUserLeaderboardEntry.level}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[10px] uppercase tracking-[0.18em] text-fuchsia-100/70">Score</p>
+                      <p className="mt-1 font-black text-white">{formatXp(currentUserLeaderboardEntry.score)}</p>
                     </div>
                   </div>
-                  <span className={`rounded-full border px-3 py-1 text-[10px] ${entry.online ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-50' : 'border-white/10 bg-white/5 text-white/60'}`}>{entry.online ? 'live' : 'idle'}</span>
+                  <p className="mt-2 truncate text-xs text-white/62">{currentUserLeaderboardEntry.label}</p>
                 </div>
-              ))}
+              ) : null}
+              {leaderboardUpdatedAt ? <p className="text-[10px] uppercase tracking-[0.14em] text-white/35">Maj {new Date(leaderboardUpdatedAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit', second: '2-digit' })}</p> : null}
+              {leaderboardStatus === 'error' ? (
+                <div className="rounded-[1rem] border border-rose-500/25 bg-rose-500/10 px-4 py-4 text-sm text-rose-50/90">
+                  Leaderboard KO pour l’instant. {leaderboardError ?? 'Le backend fait le malin.'}
+                </div>
+              ) : leaderboardStatus === 'loading' && leaderboardEntries.length === 0 ? (
+                <div className="rounded-[1rem] border border-white/8 bg-white/5 px-4 py-5 text-sm text-white/58">Chargement du classement live…</div>
+              ) : leaderboardEntries.length === 0 ? (
+                <div className="rounded-[1rem] border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/55">Pas encore de score exploitable. Il faut bouger la room un peu.</div>
+              ) : (
+                leaderboardEntries.map((entry) => (
+                  <div key={entry.id} className={`flex items-center justify-between rounded-[1rem] border px-3 py-3 ${entry.isCurrentUser ? 'border-fuchsia-300/25 bg-fuchsia-300/10' : 'border-white/8 bg-white/5'}`}>
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/25 text-xs font-black text-white/78">{entry.medal ?? `#${entry.rank}`}</div>
+                      <AvatarDisplay avatar={entry.avatar} label={entry.label} size="sm" />
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-semibold text-white/92">{entry.label}</p>
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">lvl {entry.level} · {formatXp(entry.xp)}</p>
+                      </div>
+                    </div>
+                    <span className={`rounded-full border px-3 py-1 text-[10px] ${entry.online ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-50' : 'border-white/10 bg-white/5 text-white/60'}`}>{entry.online ? 'live' : 'idle'}</span>
+                  </div>
+                ))
+              )}
             </div>
           )}
           {chatComposer && state.currentUser.isLoggedIn && rightPanelTab === 'chat' ? (
