@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.37] - 2026-05-07
+
+### Added
+- Migration Supabase pour persister `selected_skin_id`, `equipped_accessory_ids`, inventaires débloqués, `avatar_xp` et `avatar_level`
+- Mapping de compatibilité entre l’ancien avatar editor et le nouveau modèle de loadout
+
+### Changed
+- Les hydrations room/chat/queue/members relisent maintenant les vrais champs avatar depuis `profiles`
+- Le layout global du site et les colonnes room prennent plus de largeur sur grand écran
+
 ## [1.6.36] - 2026-05-07
 
 ### Added

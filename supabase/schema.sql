@@ -44,6 +44,12 @@ create table if not exists public.profiles (
   avatar_accessories text[] not null default '{headphones}',
   avatar_outfit_color text not null default 'purple' check (avatar_outfit_color in ('pink', 'gold', 'purple', 'cyan', 'emerald')),
   avatar_badge text not null default 'none' check (avatar_badge in ('none', 'vip', 'mod', 'crown')),
+  selected_skin_id text not null default 'animal-fox-neon',
+  equipped_accessory_ids text[] not null default '{headphones-pro}',
+  unlocked_skin_ids text[] not null default '{animal-fox-neon}',
+  unlocked_accessory_ids text[] not null default '{headphones-pro}',
+  avatar_xp integer not null default 0 check (avatar_xp >= 0),
+  avatar_level integer not null default 1 check (avatar_level >= 1),
   bio text,
   created_at timestamptz not null default timezone('utc', now()),
   updated_at timestamptz not null default timezone('utc', now())

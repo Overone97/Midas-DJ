@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AvatarCustomizer } from '@/components/avatar-customizer';
 import { RoomPageView } from '@/components/room-page';
 import { DEFAULT_AVATAR, loadStoredAvatar, normalizeAvatar, saveStoredAvatar, type AvatarConfig } from '@/lib/avatar';
+import { createDefaultAvatarProgression, mapLegacyAvatarToLoadout, normalizeAvatarLoadout, normalizeAvatarProgression, type AvatarLoadout, type AvatarProgression } from '@/lib/avatar-catalog';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { ChatMessagePreview, PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomPageState, RoomReactionSummary, RoomReactionType, RoomRole } from '@/lib/rooms';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl } from '@/lib/youtube';
@@ -41,6 +42,12 @@ type AvatarProfileRow = {
   avatar_accessories?: string[] | null;
   avatar_outfit_color?: string | null;
   avatar_badge?: string | null;
+  selected_skin_id?: string | null;
+  equipped_accessory_ids?: string[] | null;
+  unlocked_skin_ids?: string[] | null;
+  unlocked_accessory_ids?: string[] | null;
+  avatar_xp?: number | null;
+  avatar_level?: number | null;
 };
 
 type QueueRow = {
@@ -127,6 +134,27 @@ function avatarFromProfile(profile: AvatarProfileRow | AvatarProfileRow[] | null
   });
 }
 
+function loadoutFromProfile(profile: AvatarProfileRow | AvatarProfileRow[] | null | undefined, fallbackAvatar?: AvatarConfig): AvatarLoadout {
+  const resolved = Array.isArray(profile) ? profile[0] : profile;
+  return mapLegacyAvatarToLoadout(fallbackAvatar, {
+    selectedSkinId: resolved?.selected_skin_id ?? undefined,
+    equippedAccessoryIds: resolved?.equipped_accessory_ids ?? undefined,
+  });
+}
+
+function progressionFromProfile(profile: AvatarProfileRow | AvatarProfileRow[] | null | undefined, loadout?: AvatarLoadout): AvatarProgression {
+  const resolved = Array.isArray(profile) ? profile[0] : profile;
+  const fallback = createDefaultAvatarProgression();
+  return normalizeAvatarProgression({
+    xp: resolved?.avatar_xp ?? fallback.xp,
+    level: resolved?.avatar_level ?? fallback.level,
+    unlockedSkinIds: resolved?.unlocked_skin_ids ?? [loadout?.selectedSkinId ?? fallback.unlockedSkinIds[0]],
+    unlockedAccessoryIds: resolved?.unlocked_accessory_ids ?? loadout?.equippedAccessoryIds ?? fallback.unlockedAccessoryIds,
+    softCoins: fallback.softCoins,
+    premiumGems: fallback.premiumGems,
+  });
+}
+
 function mapQueueRows(rows: QueueRow[]): QueueItemPreview[] {
   return rows.map((item, index) => ({
     id: item.id,
@@ -154,6 +182,8 @@ function mapMemberRows(rows: MemberRow[]) {
       role: entry.role,
       online: false,
       avatar: avatarFromProfile(profile),
+      avatarLoadout: loadoutFromProfile(profile, avatarFromProfile(profile)),
+      avatarProgression: progressionFromProfile(profile, loadoutFromProfile(profile, avatarFromProfile(profile))),
     });
     return acc;
   }, []);
@@ -299,19 +329,19 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         user
           ? supabase
               .from('profiles')
-              .select('id, username')
+              .select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level')
               .eq('id', user.id)
               .maybeSingle()
           : Promise.resolve({ data: null, error: null }),
-        supabase.from('profiles').select('id, username').eq('id', room.owner_id).maybeSingle(),
+        supabase.from('profiles').select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level').eq('id', room.owner_id).maybeSingle(),
         supabase
           .from('room_members')
-          .select('role, profiles!room_members_user_id_fkey(id, username)')
+          .select('role, profiles!room_members_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level)')
           .eq('room_id', room.id)
-          .limit(12),
+          .limit(44),
         supabase
           .from('queue_items')
-          .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(id, username)')
+          .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level)')
           .eq('room_id', room.id)
           .in('status', ['queued', 'playing'])
           .order('position', { ascending: true })
@@ -323,7 +353,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           .maybeSingle(),
         supabase
           .from('messages')
-          .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(id, username)')
+          .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level)')
           .eq('room_id', room.id)
           .is('deleted_at', null)
           .order('created_at', { ascending: false })
@@ -340,6 +370,9 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       const queueItems = mapQueueRows((queueItemsData as QueueRow[]) ?? []);
       const playback = mapPlaybackRow(playbackData as PlaybackRow | null);
       const currentQueueItemId = playback?.currentQueueItemId ?? queueItems.find((item) => item.status === 'playing')?.id ?? queueItems[0]?.id;
+      const viewerAvatar = viewerProfile ? avatarFromProfile(viewerProfile as AvatarProfileRow | null) : normalizeAvatar(loadStoredAvatar(user?.id) ?? DEFAULT_AVATAR);
+      const viewerLoadout = viewerProfile ? loadoutFromProfile(viewerProfile as AvatarProfileRow | null, viewerAvatar) : mapLegacyAvatarToLoadout(viewerAvatar);
+      const viewerProgression = viewerProfile ? progressionFromProfile(viewerProfile as AvatarProfileRow | null, viewerLoadout) : createDefaultAvatarProgression();
 
       setState({
         status: denied ? 'forbidden' : 'live',
@@ -360,7 +393,9 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           role,
           email: user?.email,
           label: labelFromProfile(viewerProfile as AvatarProfileRow | null, user?.email?.split('@')[0] ?? 'Guest listener'),
-          avatar: viewerProfile ? avatarFromProfile(viewerProfile as AvatarProfileRow | null) : normalizeAvatar(loadStoredAvatar(user?.id) ?? DEFAULT_AVATAR),
+          avatar: viewerAvatar,
+          avatarLoadout: viewerLoadout,
+          avatarProgression: viewerProgression,
         },
         members: mapMemberRows((membersData as MemberRow[]) ?? []),
         queue: { items: queueItems },
@@ -370,7 +405,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         presence: { enabled: true, connected: false, onlineCount: 0 },
       });
 
-      setAvatarDraft(viewerProfile ? avatarFromProfile(viewerProfile as AvatarProfileRow | null) : normalizeAvatar(loadStoredAvatar(user?.id) ?? DEFAULT_AVATAR));
+      setAvatarDraft(viewerAvatar);
     }
 
     void hydrateRoom();
@@ -466,7 +501,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     async function fetchQueueRows() {
       return supabase
         .from('queue_items')
-        .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(id, username)')
+        .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, status, added_by, profiles!queue_items_added_by_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level)')
         .eq('room_id', roomId)
         .in('status', ['queued', 'playing'])
         .order('position', { ascending: true })
@@ -541,7 +576,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     async function fetchMessages() {
       return supabase
         .from('messages')
-        .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(id, username)')
+        .select('id, content, created_at, user_id, profiles!messages_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level)')
         .eq('room_id', roomId)
         .is('deleted_at', null)
         .order('created_at', { ascending: false })
@@ -589,7 +624,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           const inserted = payload.new as { id: string; content: string; created_at: string; user_id: string };
           const { data: profileData } = await supabase
             .from('profiles')
-            .select('id, username')
+            .select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level')
             .eq('id', inserted.user_id)
             .maybeSingle();
 
@@ -626,9 +661,9 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       .on('postgres_changes', { event: '*', schema: 'public', table: 'room_members', filter: `room_id=eq.${roomId}` }, async () => {
         const { data } = await supabase
           .from('room_members')
-          .select('role, profiles!room_members_user_id_fkey(id, username)')
+          .select('role, profiles!room_members_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level)')
           .eq('room_id', roomId)
-          .limit(12);
+          .limit(44);
 
         setState((current) => ({
           ...current,
@@ -1039,6 +1074,14 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     const supabase = getSupabaseBrowserClient();
     const userId = state.currentUser.id;
     const nextAvatar = normalizeAvatar(avatarDraft);
+    const nextLoadout = normalizeAvatarLoadout(
+      mapLegacyAvatarToLoadout(nextAvatar, state.currentUser.avatarLoadout),
+    );
+    const nextProgression = normalizeAvatarProgression({
+      ...(state.currentUser.avatarProgression ?? createDefaultAvatarProgression()),
+      unlockedSkinIds: Array.from(new Set([...(state.currentUser.avatarProgression?.unlockedSkinIds ?? []), nextLoadout.selectedSkinId])),
+      unlockedAccessoryIds: Array.from(new Set([...(state.currentUser.avatarProgression?.unlockedAccessoryIds ?? []), ...nextLoadout.equippedAccessoryIds])),
+    });
 
     saveStoredAvatar(nextAvatar, userId);
     setAvatarSubmitting(true);
@@ -1052,6 +1095,12 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
             avatar_accessories: nextAvatar.accessories,
             avatar_outfit_color: nextAvatar.outfitColor,
             avatar_badge: nextAvatar.badge,
+            selected_skin_id: nextLoadout.selectedSkinId,
+            equipped_accessory_ids: nextLoadout.equippedAccessoryIds,
+            unlocked_skin_ids: nextProgression.unlockedSkinIds,
+            unlocked_accessory_ids: nextProgression.unlockedAccessoryIds,
+            avatar_xp: nextProgression.xp,
+            avatar_level: nextProgression.level,
           })
           .eq('id', userId);
 
@@ -1062,8 +1111,8 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
       setState((current) => ({
         ...current,
-        currentUser: { ...current.currentUser, avatar: nextAvatar },
-        members: current.members.map((member) => (member.id === userId ? { ...member, avatar: nextAvatar } : member)),
+        currentUser: { ...current.currentUser, avatar: nextAvatar, avatarLoadout: nextLoadout, avatarProgression: nextProgression },
+        members: current.members.map((member) => (member.id === userId ? { ...member, avatar: nextAvatar, avatarLoadout: nextLoadout, avatarProgression: nextProgression } : member)),
         chat: current.chat
           ? {
               messages: current.chat.messages.map((message) => (message.userId === userId ? { ...message, authorAvatar: nextAvatar } : message)),

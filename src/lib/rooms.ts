@@ -1,4 +1,5 @@
 import type { AvatarConfig } from '@/lib/avatar';
+import type { AvatarLoadout, AvatarProgression } from '@/lib/avatar-catalog';
 
 export type RoomType = 'public' | 'private';
 export type RoomRole = 'owner' | 'mod' | 'member' | 'visitor';
@@ -30,6 +31,8 @@ export type RoomMemberPreview = {
   role: RoomRole;
   online?: boolean;
   avatar?: AvatarConfig;
+  avatarLoadout?: AvatarLoadout;
+  avatarProgression?: AvatarProgression;
 };
 
 export type QueueItemStatus = 'queued' | 'playing' | 'played' | 'skipped';
@@ -99,6 +102,8 @@ export type RoomPageState = {
     email?: string | null;
     label?: string;
     avatar?: AvatarConfig;
+    avatarLoadout?: AvatarLoadout;
+    avatarProgression?: AvatarProgression;
   };
   members: RoomMemberPreview[];
   queue?: {
