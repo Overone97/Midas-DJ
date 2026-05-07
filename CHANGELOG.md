@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.6.31] - 2026-05-07
+
+### Added
+- AudioEngine client central pour piloter l’état live audio de la scène et exposer un heartbeat anti-stall
+- Adaptateur YouTube dédié pour isoler la couche IFrame API du reste de la room
+- Docs produit/tech pour cadrer la suite : spec live stage, tickets d’implémentation et pseudo-code AudioEngine
+
+### Changed
+- `SyncScenePlayer` n’est plus le cerveau audio principal : la logique de sync, stall et recovery est recentrée dans l’engine
+- La barre son affiche maintenant un vrai statut de lecture (`loading`, `buffering`, `playing`, `error`)
+- Premiers moods de scène branchés côté rendu (`idle`, `groove`, `hype`) pour préparer les avatars plus vivants
+
+### Fixed
+- Réduction du spam `playVideo()` / `seekTo()` qui pouvait recouper la lecture en boucle
+- Recovery soft plus propre quand le player YouTube décroche pendant la lecture live
+- Base plus robuste pour éviter les resyncs paniqués dispersés dans plusieurs hooks
+
 ## [1.6.11] - 2026-05-05
 
 ### Fixed

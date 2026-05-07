@@ -1,22 +1,47 @@
 'use client';
 
+import type { EngineHealth, EnginePlaybackState } from '@/lib/audio-engine';
 import { useGlobalAudioController } from '@/lib/audio-controller';
 
 export function SceneAudioControlBar({
   canControl,
   hasTrack,
+  playbackState,
+  health,
   onPlay,
   onNext,
   onStop,
 }: {
   canControl: boolean;
   hasTrack: boolean;
+  playbackState: EnginePlaybackState;
+  health: EngineHealth;
   onPlay: () => void;
   onNext: () => void;
   onStop: () => void;
 }) {
   const { state, playAll, stopAll, toggleMute } = useGlobalAudioController();
   const disabled = !hasTrack;
+
+  const statusLabel =
+    playbackState === 'buffering'
+      ? 'Buffering'
+      : playbackState === 'error'
+        ? 'Erreur audio'
+        : playbackState === 'playing'
+          ? 'Lecture live'
+          : playbackState === 'paused'
+            ? 'Pause'
+            : playbackState === 'loading'
+              ? 'Chargement'
+              : 'Standby';
+
+  const statusTone =
+    playbackState === 'error'
+      ? 'text-red-100 border-red-300/20 bg-red-300/10'
+      : playbackState === 'buffering'
+        ? 'text-cyan-50 border-cyan-300/20 bg-cyan-300/10'
+        : 'text-cyan-50/80 border-cyan-300/12 bg-cyan-300/8';
 
   return (
     <div className="rounded-[1.2rem] border border-cyan-300/14 bg-[linear-gradient(180deg,rgba(8,12,20,0.96),rgba(5,8,14,0.92))] px-3 py-3 shadow-[0_0_28px_rgba(34,211,238,0.06)]">
@@ -72,10 +97,13 @@ export function SceneAudioControlBar({
           {state.muted || state.volume <= 0 ? 'Unmute' : 'Mute'}
         </button>
 
-        <div className="ml-auto flex min-w-[16rem] flex-1 items-center justify-end rounded-[1.1rem] border border-cyan-300/15 bg-cyan-300/8 px-4 py-2.5 text-right text-cyan-50 shadow-[inset_0_0_18px_rgba(34,211,238,0.05)]">
+        <div className="ml-auto flex min-w-[16rem] flex-1 items-center justify-end gap-3 rounded-[1.1rem] border border-cyan-300/15 bg-cyan-300/8 px-4 py-2.5 text-right text-cyan-50 shadow-[inset_0_0_18px_rgba(34,211,238,0.05)]">
+          <div className={`rounded-full border px-3 py-1 text-[10px] font-black uppercase tracking-[0.16em] ${statusTone}`}>
+            {statusLabel}
+          </div>
           <div>
             <p className="text-[10px] font-black uppercase tracking-[0.18em] text-cyan-50/92">Son local</p>
-            <p className="text-xs text-cyan-50/72">Mute ici. Volume détaillé via le lecteur YouTube.</p>
+            <p className="text-xs text-cyan-50/72">{health === 'recovering' ? 'Recovery en cours.' : 'Mute ici. Volume détaillé via le lecteur YouTube.'}</p>
           </div>
         </div>
       </div>
