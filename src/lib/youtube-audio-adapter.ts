@@ -48,12 +48,48 @@ export type YouTubeStateMap = {
 export class YouTubeAudioAdapter {
   private player: YouTubePlayerLike | null = null;
   private listeners = new Map<AdapterEventName, Set<Listener<AdapterEventName>>>();
+  private desiredVolume = 80;
+  private desiredMuted = false;
 
   constructor(
     private host: HTMLElement,
     private Player: YouTubePlayerFactory,
     private playerStateMap: YouTubeStateMap,
   ) {}
+
+  private withPlayer<T>(callback: (player: YouTubePlayerLike) => T) {
+    if (!this.player) {
+      return undefined;
+    }
+
+    try {
+      return callback(this.player);
+    } catch {
+      return undefined;
+    }
+  }
+
+  private applyAudioPreferences() {
+    this.withPlayer((player) => {
+      const setVolume = (player as Partial<YouTubePlayerLike>).setVolume;
+      if (typeof setVolume === 'function') {
+        setVolume.call(player, this.desiredMuted ? 0 : this.desiredVolume);
+      }
+
+      if (this.desiredMuted) {
+        const mute = (player as Partial<YouTubePlayerLike>).mute;
+        if (typeof mute === 'function') {
+          mute.call(player);
+        }
+        return;
+      }
+
+      const unMute = (player as Partial<YouTubePlayerLike>).unMute;
+      if (typeof unMute === 'function') {
+        unMute.call(player);
+      }
+    });
+  }
 
   mount(initialVideoId: string) {
     if (this.player) {
@@ -70,11 +106,16 @@ export class YouTubeAudioAdapter {
         modestbranding: 1,
       },
       events: {
-        onReady: () => this.emit('ready', undefined),
+        onReady: () => {
+          this.applyAudioPreferences();
+          this.emit('ready', undefined);
+        },
         onStateChange: (event) => this.emit('statechange', event),
         onError: (event) => this.emit('error', event),
       },
     });
+
+    this.applyAudioPreferences();
   }
 
   destroy() {
@@ -95,36 +136,50 @@ export class YouTubeAudioAdapter {
   }
 
   load(videoId: string, startSeconds: number) {
-    this.player?.loadVideoById(videoId, startSeconds);
+    this.withPlayer((player) => {
+      player.loadVideoById(videoId, startSeconds);
+    });
+    this.applyAudioPreferences();
   }
 
   play() {
-    this.player?.playVideo();
+    this.withPlayer((player) => {
+      player.playVideo();
+    });
   }
 
   pause() {
-    this.player?.pauseVideo();
+    this.withPlayer((player) => {
+      player.pauseVideo();
+    });
   }
 
   stop() {
-    this.player?.pauseVideo();
-    this.player?.seekTo(0, true);
+    this.withPlayer((player) => {
+      player.pauseVideo();
+      player.seekTo(0, true);
+    });
   }
 
   seek(seconds: number) {
-    this.player?.seekTo(seconds, true);
+    this.withPlayer((player) => {
+      player.seekTo(seconds, true);
+    });
   }
 
   mute() {
-    this.player?.mute();
+    this.desiredMuted = true;
+    this.applyAudioPreferences();
   }
 
   unmute() {
-    this.player?.unMute();
+    this.desiredMuted = false;
+    this.applyAudioPreferences();
   }
 
   setVolume(volume: number) {
-    this.player?.setVolume(volume);
+    this.desiredVolume = volume;
+    this.applyAudioPreferences();
   }
 
   getCurrentTime() {

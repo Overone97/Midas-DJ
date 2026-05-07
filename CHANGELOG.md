@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.6.32] - 2026-05-07
+
+### Fixed
+- Adaptateur YouTube blindé contre le cas où certaines méthodes du player ne sont pas encore exposées au moment où l’UI pousse volume/mute
+- Disparition du crash `setVolume is not a function` observé pendant les interactions live type Woot
+- Réapplication du volume/mute local après chargement d’un nouveau morceau, pour éviter l’impression de reset audio à chaque transition
+
 ## [1.6.31] - 2026-05-07
 
 ### Added

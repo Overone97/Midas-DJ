@@ -1,6 +1,6 @@
 # Midas DJ
 
-**Version:** 1.6.31
+**Version:** 1.6.32
 
 Midas DJ est une plateforme d’écoute sociale en temps réel, inspirée de plug.dj et repensée pour le web moderne.
 
@@ -14,14 +14,13 @@ Créer une expérience où l’on peut :
 - prendre la main comme DJ à tour de rôle ;
 - voter, skipper et modérer sans transformer la room en zoo.
 
-## Scope de la release 1.6.31
+## Scope de la release 1.6.32
 
-Cette release arrête enfin de traiter l’audio live comme un tas de réflexes nerveux :
-- **AudioEngine central** pour piloter l’état `loading / playing / buffering / paused / error` ;
-- **adaptateur YouTube isolé** pour calmer le couplage direct à l’IFrame API ;
-- **heartbeat anti-stall + recovery soft** pour limiter les coupures et resyncs sauvages ;
-- **scène plus lisible** avec statut audio explicite et premiers moods avatars `idle / groove / hype` ;
-- **docs produit/tech** ajoutées pour cadrer la suite avatars, grab badge et FX Woot/Meh.
+Cette release corrige les bords coupants du nouveau moteur audio live :
+- **adaptateur YouTube durci** contre les méthodes pas encore prêtes côté player ;
+- **plus de crash `setVolume is not a function`** pendant les interactions room ;
+- **préservation du volume/mute local entre les morceaux** au rechargement de vidéo ;
+- **état audio local réappliqué** automatiquement après `loadVideoById()` et au `ready` du player.
 
 ## Stack retenue
 
