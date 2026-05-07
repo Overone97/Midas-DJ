@@ -5,8 +5,10 @@ import { AvatarCustomizer } from '@/components/avatar-customizer';
 import { RoomPageView } from '@/components/room-page';
 import { DEFAULT_AVATAR, loadStoredAvatar, normalizeAvatar, saveStoredAvatar, type AvatarConfig } from '@/lib/avatar';
 import { createDefaultAvatarProgression, mapLegacyAvatarToLoadout, normalizeAvatarLoadout, normalizeAvatarProgression, type AvatarLoadout, type AvatarProgression } from '@/lib/avatar-catalog';
+import type { LeaderboardPayload, LeaderboardTab } from '@/lib/leaderboard';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { ChatMessagePreview, PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomPageState, RoomReactionSummary, RoomReactionType, RoomRole } from '@/lib/rooms';
+import type { XpActionKey } from '@/lib/xp';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl } from '@/lib/youtube';
 
 type PresenceMeta = {
@@ -93,6 +95,26 @@ type VoteRow = {
   queue_item_id: string;
   user_id: string;
   type: RoomReactionType;
+};
+
+type XpEventRow = {
+  id: string;
+  action_type: XpActionKey;
+  xp_amount: number;
+  reason: string;
+  created_at: string;
+  level_after: number;
+  xp_total_after: number;
+};
+
+type LeaderboardRpcRow = {
+  rank: number;
+  user_id: string;
+  username: string;
+  avatar_skin_id?: string | null;
+  avatar_accessory_ids?: string[] | null;
+  level: number;
+  score: number;
 };
 
 const emptyReactionCounts: Record<RoomReactionType, number> = {
@@ -259,6 +281,46 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
   const [avatarSubmitting, setAvatarSubmitting] = useState(false);
   const [avatarDraft, setAvatarDraft] = useState<AvatarConfig>(initialState.currentUser.avatar ?? DEFAULT_AVATAR);
+  const [xpFeed, setXpFeed] = useState<Array<{ id: string; action: XpActionKey; amount: number; reason: string; createdAt: string; leveledUp?: boolean }>>([]);
+  const [leaderboardData, setLeaderboardData] = useState<Partial<Record<LeaderboardTab, LeaderboardPayload>>>({});
+
+  async function refreshLeaderboards(roomId: string, currentUserId?: string) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      return;
+    }
+
+    const tabs: LeaderboardTab[] = ['best_listeners', 'best_djs', 'top_day', 'top_week'];
+    const results = await Promise.all(
+      tabs.map(async (tab) => {
+        const { data, error } = await supabase.rpc('get_room_leaderboard', {
+          room_id_value: roomId,
+          leaderboard_tab: tab,
+          leaderboard_limit: 50,
+        });
+
+        if (error) {
+          return [tab, null] as const;
+        }
+
+        const rows = ((data as LeaderboardRpcRow[] | null) ?? []).map((entry) => ({
+          rank: Number(entry.rank),
+          userId: entry.user_id,
+          username: entry.username,
+          avatarSkinId: entry.avatar_skin_id ?? undefined,
+          avatarAccessoryIds: entry.avatar_accessory_ids ?? undefined,
+          level: entry.level,
+          score: Number(entry.score),
+          medal: entry.rank === 1 ? 'gold' : entry.rank === 2 ? 'silver' : entry.rank === 3 ? 'bronze' : undefined,
+          isCurrentUser: entry.user_id === currentUserId,
+        }));
+
+        return [tab, { tab, generatedAt: new Date().toISOString(), entries: rows, currentUserEntry: rows.find((entry) => entry.userId === currentUserId) ?? null }] as const;
+      }),
+    );
+
+    setLeaderboardData(Object.fromEntries(results.filter((entry) => entry[1] !== null)) as Partial<Record<LeaderboardTab, LeaderboardPayload>>);
+  }
 
   useEffect(() => {
     setState(initialState);
@@ -406,6 +468,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       });
 
       setAvatarDraft(viewerAvatar);
+      void refreshLeaderboards(room.id, user?.id);
     }
 
     void hydrateRoom();
@@ -573,6 +636,40 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       }));
     }
 
+    async function refreshViewerProgression() {
+      if (!state.currentUser.id) {
+        return;
+      }
+
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level')
+        .eq('id', state.currentUser.id)
+        .maybeSingle();
+
+      const profile = data as AvatarProfileRow | null;
+      if (!profile) {
+        return;
+      }
+
+      const nextAvatar = avatarFromProfile(profile);
+      const nextLoadout = loadoutFromProfile(profile, nextAvatar);
+      const nextProgression = progressionFromProfile(profile, nextLoadout);
+
+      setState((current) => ({
+        ...current,
+        currentUser: {
+          ...current.currentUser,
+          avatar: nextAvatar,
+          avatarLoadout: nextLoadout,
+          avatarProgression: nextProgression,
+        },
+        members: current.members.map((member) =>
+          member.id === current.currentUser.id ? { ...member, avatar: nextAvatar, avatarLoadout: nextLoadout, avatarProgression: nextProgression } : member,
+        ),
+      }));
+    }
+
     async function fetchMessages() {
       return supabase
         .from('messages')
@@ -682,10 +779,75 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       })
       .subscribe();
 
+    const xpEventsChannel = state.currentUser.id
+      ? supabase
+          .channel(`room-xp:${roomId}:${state.currentUser.id}`)
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'xp_events', filter: `user_id=eq.${state.currentUser.id}` }, (payload: { new: Record<string, unknown> }) => {
+            const inserted = payload.new as unknown as XpEventRow;
+            setXpFeed((current) => [
+              {
+                id: inserted.id,
+                action: inserted.action_type,
+                amount: inserted.xp_amount,
+                reason: inserted.reason,
+                createdAt: inserted.created_at,
+                leveledUp: Number(inserted.level_after) > (state.currentUser.avatarProgression?.level ?? 1),
+              },
+              ...current,
+            ].slice(0, 4));
+
+            setTimeout(() => {
+              setXpFeed((current) => current.filter((entry) => entry.id !== inserted.id));
+            }, 4200);
+
+            setState((current) => ({
+              ...current,
+              currentUser: {
+                ...current.currentUser,
+                avatarProgression: normalizeAvatarProgression({
+                  ...(current.currentUser.avatarProgression ?? createDefaultAvatarProgression()),
+                  xp: inserted.xp_total_after,
+                  level: inserted.level_after,
+                }),
+              },
+              members: current.members.map((member) =>
+                member.id === current.currentUser.id
+                  ? {
+                      ...member,
+                      avatarProgression: normalizeAvatarProgression({
+                        ...(member.avatarProgression ?? createDefaultAvatarProgression()),
+                        xp: inserted.xp_total_after,
+                        level: inserted.level_after,
+                      }),
+                    }
+                  : member,
+              ),
+            }));
+
+            void refreshLeaderboards(roomId, state.currentUser.id);
+          })
+          .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'xp_events', filter: `room_id=eq.${roomId}` }, () => {
+            void refreshLeaderboards(roomId, state.currentUser.id);
+          })
+          .subscribe()
+      : null;
+
     void refreshQueue();
     void refreshPlayback();
     void refreshMessages();
     void refreshReactions();
+    void refreshViewerProgression();
+    void refreshLeaderboards(roomId, state.currentUser.id);
+
+    const presenceXpInterval = state.currentUser.isLoggedIn
+      ? window.setInterval(() => {
+          void supabase.rpc('claim_presence_xp', { room_id_value: roomId });
+        }, 5 * 60 * 1000)
+      : null;
+
+    if (state.currentUser.isLoggedIn) {
+      void supabase.rpc('claim_presence_xp', { room_id_value: roomId });
+    }
 
     return () => {
       void supabase.removeChannel(queueChannel);
@@ -693,8 +855,14 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       void supabase.removeChannel(messagesChannel);
       void supabase.removeChannel(membersChannel);
       void supabase.removeChannel(votesChannel);
+      if (xpEventsChannel) {
+        void supabase.removeChannel(xpEventsChannel);
+      }
+      if (presenceXpInterval) {
+        window.clearInterval(presenceXpInterval);
+      }
     };
-  }, [state.envReady, state.room.id]);
+  }, [state.currentUser.avatarProgression?.level, state.currentUser.id, state.currentUser.isLoggedIn, state.envReady, state.room.id]);
 
   useEffect(() => {
     setAvatarDraft(state.currentUser.avatar ?? DEFAULT_AVATAR);
@@ -914,47 +1082,14 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       return;
     }
 
-    const previousReaction = state.reactions?.currentUserReaction ?? null;
-    const nextReaction = previousReaction === reaction ? null : reaction;
-
-    setState((current) => {
-      const counts = { ...(current.reactions?.counts ?? emptyReactionCounts) };
-      const userReactions = { ...(current.reactions?.userReactions ?? {}) };
-      if (previousReaction) {
-        counts[previousReaction] = Math.max(0, counts[previousReaction] - 1);
-      }
-      if (nextReaction) {
-        counts[nextReaction] += 1;
-        userReactions[user.id] = nextReaction;
-      } else {
-        delete userReactions[user.id];
-      }
-
-      return {
-        ...current,
-        reactions: {
-          currentQueueItemId,
-          counts,
-          currentUserReaction: nextReaction,
-          userReactions,
-        },
-      };
+    const { error } = await supabase.rpc('submit_room_reaction', {
+      room_id_value: state.room.id,
+      queue_item_id_value: currentQueueItemId,
+      reaction_type: reaction,
     });
 
-    const { error: deleteError } = await supabase.from('votes').delete().eq('room_id', state.room.id).eq('queue_item_id', currentQueueItemId).eq('user_id', user.id);
-
-    const insertError = nextReaction
-      ? (
-          await supabase.from('votes').insert({
-            room_id: state.room.id,
-            queue_item_id: currentQueueItemId,
-            user_id: user.id,
-            type: nextReaction,
-          })
-        ).error
-      : null;
-    if (deleteError || insertError) {
-      setChatFeedback({ tone: 'error', text: (deleteError ?? insertError)?.message ?? 'Impossible d’enregistrer ta réaction.' });
+    if (error) {
+      setChatFeedback({ tone: 'error', text: error.message ?? 'Impossible d’enregistrer ta réaction.' });
       const { data } = await supabase.from('votes').select('id, queue_item_id, user_id, type').eq('room_id', state.room.id);
       setState((current) => ({
         ...current,
@@ -989,7 +1124,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     await supabase.from('playback_state').update(payload).eq('room_id', state.room.id).eq('dj_user_id', state.playback.djUserId ?? '');
   }
 
-  async function handleNextTrack() {
+  async function handleNextTrack(completionReason: 'completed' | 'skipped' = 'skipped') {
     const supabase = getSupabaseBrowserClient();
     const roomId = state.room.id;
     const currentPlayback = state.playback;
@@ -998,63 +1133,15 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       return;
     }
 
-    const currentTrack = queueItems.find((item) => item.id === currentPlayback.currentQueueItemId) ?? queueItems[0];
-    const nextTrack = queueItems.find((item) => item.position > (currentTrack?.position ?? 0));
+    const { error } = await supabase.rpc('advance_queue_and_award_xp', {
+      room_id_value: roomId,
+      completion_reason: completionReason,
+    });
 
-    if (!nextTrack) {
-      if (currentTrack) {
-        await supabase.from('queue_items').update({ status: 'played' }).eq('id', currentTrack.id);
-      }
-      await supabase
-        .from('playback_state')
-        .update({ current_queue_item_id: null, state: 'paused', started_at: null, offset_seconds: 0 })
-        .eq('room_id', roomId)
-        .eq('dj_user_id', currentPlayback.djUserId ?? '');
-
-      setState((current) => ({
-        ...current,
-        queue: { items: (current.queue?.items ?? []).filter((item) => item.id !== currentTrack?.id) },
-        playback: current.playback
-          ? {
-              ...current.playback,
-              currentQueueItemId: null,
-              state: 'paused',
-              startedAt: null,
-              offsetSeconds: 0,
-            }
-          : current.playback,
-      }));
+    if (error) {
+      setChatFeedback({ tone: 'error', text: error.message ?? 'Impossible d’avancer au titre suivant.' });
       return;
     }
-
-    if (currentTrack) {
-      await supabase.from('queue_items').update({ status: 'played' }).eq('id', currentTrack.id);
-    }
-    await supabase.from('queue_items').update({ status: 'playing' }).eq('id', nextTrack.id);
-    await supabase
-      .from('playback_state')
-      .update({
-        current_queue_item_id: nextTrack.id,
-        state: 'playing',
-        started_at: new Date().toISOString(),
-        offset_seconds: 0,
-      })
-      .eq('room_id', roomId)
-      .eq('dj_user_id', currentPlayback.djUserId ?? '');
-
-    setState((current) => ({
-      ...current,
-      queue: { items: (current.queue?.items ?? []).filter((item) => item.id !== currentTrack?.id) },
-      playback: current.playback
-        ? {
-            ...current.playback,
-            currentQueueItemId: nextTrack.id,
-            state: 'playing',
-            startedAt: new Date().toISOString(),
-            offsetSeconds: 0,
-          }
-        : current.playback,
-    }));
   }
 
   async function handleStopPlayback() {
@@ -1159,7 +1246,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         playerControls={{
           canControl: canControlPlayback,
           onTogglePlayback: (nextState, currentOffset) => void handleTogglePlayback(nextState, currentOffset),
-          onNextTrack: () => void handleNextTrack(),
+          onNextTrack: (reason?: 'completed' | 'skipped') => void handleNextTrack(reason ?? 'skipped'),
           onStopPlayback: () => void handleStopPlayback(),
         }}
         queueComposer={
@@ -1187,6 +1274,8 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           currentUserReaction: hydratedState.reactions?.currentUserReaction,
           onReact: (reaction) => void handleReaction(reaction),
         }}
+        xpFeed={xpFeed}
+        leaderboardData={leaderboardData}
         avatarControls={{
           open: avatarEditorOpen,
           submitting: avatarSubmitting,
