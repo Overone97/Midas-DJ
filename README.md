@@ -1,6 +1,6 @@
 # Midas DJ
 
-**Version:** 1.6.32
+**Version:** 1.6.33
 
 Midas DJ est une plateforme d’écoute sociale en temps réel, inspirée de plug.dj et repensée pour le web moderne.
 
@@ -14,13 +14,12 @@ Créer une expérience où l’on peut :
 - prendre la main comme DJ à tour de rôle ;
 - voter, skipper et modérer sans transformer la room en zoo.
 
-## Scope de la release 1.6.32
+## Scope de la release 1.6.33
 
-Cette release corrige les bords coupants du nouveau moteur audio live :
-- **adaptateur YouTube durci** contre les méthodes pas encore prêtes côté player ;
-- **plus de crash `setVolume is not a function`** pendant les interactions room ;
-- **préservation du volume/mute local entre les morceaux** au rechargement de vidéo ;
-- **état audio local réappliqué** automatiquement après `loadVideoById()` et au `ready` du player.
+Cette release débloque enfin les réactions live côté sécurité backend :
+- **policy RLS `votes` corrigée** pour autoriser explicitement le owner de room à réagir ;
+- **Woot / Grab / Meh** ne doivent plus se faire jeter par Supabase quand le owner clique ;
+- base plus cohérente entre les permissions de `messages` et celles de `votes`.
 
 ## Stack retenue
 

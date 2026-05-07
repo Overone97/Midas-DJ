@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.33] - 2026-05-07
+
+### Fixed
+- Policy RLS `votes` corrigée pour autoriser le owner d’une room à insérer ses réactions live sans erreur `new row violates row-level security policy`
+- Permissions des réactions alignées avec la logique déjà utilisée pour les messages room
+
 ## [1.6.32] - 2026-05-07
 
 ### Fixed
