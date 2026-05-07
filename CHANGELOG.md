@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.35] - 2026-05-07
+
+### Changed
+- Les réactions live conservent maintenant une vue par utilisateur pour piloter la scène, pas seulement des compteurs globaux
+- La fosse aligne mieux les avatars côte à côte pour se rapprocher de l’énergie plug.dj
+
+### Added
+- États visuels d’avatar `idle / groove / hype`
+- Danse individuelle des avatars quand leur joueur fait un `Woot`
+- Main levée + badge sur `Grab` pour rendre l’intention visible directement dans la fosse
+
 ## [1.6.34] - 2026-05-07
 
 ### Added

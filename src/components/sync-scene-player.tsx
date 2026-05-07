@@ -105,7 +105,8 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
   const currentTrack = track;
   const syncedMembers = members.filter((member) => member.online);
   const syncedCount = syncedMembers.length;
-  const crowdMembers = members.slice(0, 8);
+  const crowdMembers = members.filter((member) => member.role !== 'owner').slice(0, 12);
+  const djMember = members.find((member) => member.role === 'owner');
   const liveOffset = engineState.playbackState === 'playing' ? engineState.targetOffsetSeconds : engineState.actualOffsetSeconds;
 
   const stageBadge = useMemo(() => {
@@ -140,6 +141,14 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
 
     return 'groove';
   }, [engineState.playbackState, reactionBursts.length, reactions?.counts.grab, reactions?.counts.woot]);
+
+  function getMemberMood(memberId: string) {
+    const reaction = reactions?.userReactions?.[memberId];
+    if (reaction === 'woot') {
+      return sceneMood === 'hype' ? 'hype' : 'groove';
+    }
+    return 'idle' as const;
+  }
 
   useEffect(() => {
     if (!reactions) {
@@ -372,7 +381,7 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
 
               <div className={`absolute left-1/2 bottom-[13.5rem] z-[6] flex -translate-x-1/2 flex-col items-center transition-transform duration-500 ${sceneMood === 'hype' ? 'translate-y-[-0.35rem]' : sceneMood === 'groove' ? 'translate-y-[-0.15rem]' : ''}`}>
                 <div className={`absolute -top-10 h-32 w-32 rounded-full blur-2xl ${sceneMood === 'hype' ? 'bg-fuchsia-400/30' : 'bg-fuchsia-400/20'}`} />
-                <AvatarDisplay avatar={members.find((member) => member.role === 'owner')?.avatar} label={ownerLabel} size="lg" badge="DJ" />
+                <AvatarDisplay avatar={djMember?.avatar} label={ownerLabel} size="lg" badge="DJ" mood={sceneMood} raisedHand={reactions?.userReactions?.[djMember?.id ?? ''] === 'grab'} />
                 <span className="mt-2 rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-fuchsia-50">DJ booth</span>
               </div>
 
@@ -423,24 +432,30 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                     <div className="rounded-full border border-fuchsia-300/12 bg-fuchsia-300/6 px-3 py-2 text-center text-fuchsia-100/55">crowd heat</div>
                     <div className="rounded-full border border-cyan-300/12 bg-cyan-300/6 px-3 py-2 text-center text-cyan-100/55">live listeners</div>
                   </div>
-                  <div className="flex min-h-[14.2rem] items-end gap-3 overflow-x-auto pb-1">
+                  <div className="flex min-h-[14.2rem] flex-wrap items-end justify-center gap-x-3 gap-y-4 pb-1">
                     {crowdMembers.length > 0 ? (
                       crowdMembers.map((member, index) => {
-                        const laneHeight = index % 3 === 0 ? 'h-[7.2rem]' : index % 3 === 1 ? 'h-[6.4rem]' : 'h-[7.8rem]';
-                        const glow = member.online ? 'border-cyan-300/25 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,0.08)]' : 'border-white/10 bg-white/5';
-                        const movement = sceneMood === 'hype' ? 'translate-y-[-0.45rem]' : sceneMood === 'groove' ? 'translate-y-[-0.2rem]' : '';
+                        const reaction = reactions?.userReactions?.[member.id] ?? null;
+                        const memberMood = getMemberMood(member.id);
+                        const laneHeight = memberMood === 'hype' ? 'h-[8rem]' : memberMood === 'groove' ? 'h-[7.4rem]' : 'h-[6.4rem]';
+                        const glow = reaction === 'woot'
+                          ? 'border-fuchsia-300/30 bg-fuchsia-300/12 shadow-[0_0_22px_rgba(217,70,239,0.14)]'
+                          : member.online
+                            ? 'border-cyan-300/25 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,0.08)]'
+                            : 'border-white/10 bg-white/5';
 
                         return (
-                          <div key={member.id} className={`flex min-w-[5.9rem] flex-col items-center justify-end transition-transform duration-500 ${movement}`} style={{ transitionDelay: `${index * 40}ms` }}>
+                          <div key={member.id} className="flex min-w-[5.9rem] max-w-[5.9rem] flex-col items-center justify-end" style={{ transitionDelay: `${index * 40}ms` }}>
                             <div className={`mb-1 h-2 w-2 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.7)]' : 'bg-white/20'}`} />
                             <div className={`relative w-[4.9rem] rounded-[1.2rem_1.2rem_0.7rem_0.7rem] border transition ${laneHeight} ${glow}`}>
                               <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-5">
-                                <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" />
+                                <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" mood={memberMood} raisedHand={reaction === 'grab'} badge={reaction === 'grab' ? 'Wants this track' : undefined} />
                               </div>
                               <div className="absolute inset-x-3 top-3 h-1 rounded-full bg-white/10" />
                               <div className="absolute inset-x-2 bottom-2 h-8 rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />
                             </div>
                             <p className="mt-2 max-w-[4.8rem] truncate text-center text-[11px] font-semibold text-white/82">{member.label}</p>
+                            <p className="mt-1 text-[9px] uppercase tracking-[0.16em] text-white/45">{reaction === 'woot' ? 'dancing' : reaction === 'meh' ? 'meh' : reaction === 'grab' ? 'grab' : 'idle'}</p>
                           </div>
                         );
                       })
