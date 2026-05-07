@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.38] - 2026-05-07
+
+### Added
+- Mode d’affichage `wide` dans la room live pour agrandir la scène et exploiter les grands écrans
+- Onglet leaderboard dans le panneau latéral room pour visualiser rapidement le classement local affiché
+
+### Changed
+- Le panneau live room gagne en densité visuelle avec plus de hauteur utile pour le chat et une mise en page plus large
+- La section queue/composer s’adapte mieux aux écrans 2XL pour éviter de gaspiller de la largeur
+
 ## [1.6.37] - 2026-05-07
 
 ### Added

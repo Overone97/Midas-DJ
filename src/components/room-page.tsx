@@ -84,6 +84,10 @@ function formatDuration(durationSeconds?: number) {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+function formatXp(value?: number) {
+  return `${value ?? 0} XP`;
+}
+
 export function RoomPageView({
   state,
   queueComposer,
@@ -108,7 +112,8 @@ export function RoomPageView({
   const chatMessages = state.chat?.messages ?? [];
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
   const shouldAutoScrollRef = useRef(true);
-  const [rightPanelTab, setRightPanelTab] = useState<'chat' | 'users'>('chat');
+  const [rightPanelTab, setRightPanelTab] = useState<'chat' | 'users' | 'leaderboard'>('chat');
+  const [layoutMode, setLayoutMode] = useState<'default' | 'wide'>('wide');
   const [lastSeenMessageId, setLastSeenMessageId] = useState<string | null>(chatMessages.at(-1)?.id ?? null);
 
   const displayedMessages = useMemo(() => chatMessages.slice(-24), [chatMessages]);
@@ -188,7 +193,43 @@ export function RoomPageView({
     return firstUnreadIndex === -1 ? 0 : displayedMessages.length - firstUnreadIndex;
   }, [displayedMessages, firstUnreadMessageId]);
 
+  const leaderboardEntries = useMemo(() => {
+    const uniqueMembers = new Map<string, RoomPageState['members'][number]>();
+
+    for (const member of state.members) {
+      uniqueMembers.set(member.id, member);
+    }
+
+    if (state.currentUser.id) {
+      uniqueMembers.set(state.currentUser.id, {
+        id: state.currentUser.id,
+        label: state.currentUser.label ?? state.currentUser.email?.split('@')[0] ?? 'You',
+        role: state.currentUser.role,
+        online: true,
+        avatar: state.currentUser.avatar,
+        avatarLoadout: state.currentUser.avatarLoadout,
+        avatarProgression: state.currentUser.avatarProgression,
+      });
+    }
+
+    return Array.from(uniqueMembers.values())
+      .map((member) => ({
+        ...member,
+        xp: member.avatarProgression?.xp ?? 0,
+        level: member.avatarProgression?.level ?? 1,
+      }))
+      .sort((a, b) => (b.xp - a.xp) || (Number(b.online) - Number(a.online)) || a.label.localeCompare(b.label))
+      .slice(0, 50)
+      .map((member, index) => ({
+        ...member,
+        rank: index + 1,
+        medal: index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null,
+        isCurrentUser: member.id === state.currentUser.id,
+      }));
+  }, [state.currentUser.avatar, state.currentUser.avatarLoadout, state.currentUser.avatarProgression, state.currentUser.email, state.currentUser.id, state.currentUser.label, state.currentUser.role, state.members]);
+
   const reactionSummary: RoomReactionSummary | undefined = state.reactions;
+  const isWideLayout = layoutMode === 'wide';
 
   return (
     <section className="space-y-4">
@@ -226,14 +267,20 @@ export function RoomPageView({
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_420px]">
+      <div className={`grid gap-4 xl:items-start ${isWideLayout ? 'xl:grid-cols-[minmax(0,1.2fr)_460px] 2xl:grid-cols-[minmax(0,1.35fr)_500px]' : 'xl:grid-cols-[minmax(0,1fr)_380px] 2xl:grid-cols-[minmax(0,1fr)_420px]'}`}>
         <div className="rounded-[1.8rem] border border-fuchsia-400/12 bg-[linear-gradient(180deg,rgba(12,10,18,0.96),rgba(7,6,11,0.95))] p-3 shadow-[0_22px_70px_rgba(0,0,0,0.35)]">
           <div className="mb-3 flex items-center justify-between gap-4">
             <div>
               <p className="text-[10px] uppercase tracking-[0.24em] text-fuchsia-200/72">Main stage</p>
               <h3 className="mt-1 text-xl font-black text-white">Scène synchronisée</h3>
             </div>
-            <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/65">{currentTrack ? currentTrack.status : 'placeholder'}</span>
+            <div className="flex items-center gap-2">
+              <div className="hidden rounded-full border border-white/10 bg-black/20 p-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/68 md:flex">
+                <button type="button" onClick={() => setLayoutMode('default')} className={`rounded-full px-3 py-1 transition ${!isWideLayout ? 'bg-white/10 text-white' : 'hover:bg-white/6'}`}>cozy</button>
+                <button type="button" onClick={() => setLayoutMode('wide')} className={`rounded-full px-3 py-1 transition ${isWideLayout ? 'bg-fuchsia-300/18 text-fuchsia-50' : 'hover:bg-white/6'}`}>wide</button>
+              </div>
+              <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1 text-[10px] uppercase tracking-[0.18em] text-white/65">{currentTrack ? currentTrack.status : 'placeholder'}</span>
+            </div>
           </div>
 
           {currentTrack ? (
@@ -244,6 +291,7 @@ export function RoomPageView({
               canControl={playerControls?.canControl ?? false}
               members={state.members}
               ownerLabel={state.room.ownerLabel}
+              layoutMode={layoutMode}
               onTogglePlayback={playerControls?.onTogglePlayback ?? (() => undefined)}
               onNextTrack={playerControls?.onNextTrack ?? (() => undefined)}
               onStopPlayback={playerControls?.onStopPlayback ?? (() => undefined)}
@@ -255,7 +303,7 @@ export function RoomPageView({
           )}
         </div>
 
-        <div className="rounded-[1.8rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(8,14,20,0.96),rgba(8,10,16,0.94))] p-4 xl:sticky xl:top-4">
+        <div className={`rounded-[1.8rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(8,14,20,0.96),rgba(8,10,16,0.94))] p-4 xl:sticky xl:top-4 ${isWideLayout ? '2xl:p-5' : ''}`}>
           <div className="flex items-center justify-between gap-3">
             <div>
               <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-100/72">Room live</p>
@@ -264,13 +312,14 @@ export function RoomPageView({
             <div className="flex rounded-full border border-white/10 bg-black/25 p-1 text-xs font-semibold text-white/70">
               <button type="button" onClick={() => setRightPanelTab('chat')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'chat' ? 'bg-cyan-300/16 text-cyan-50' : 'hover:bg-white/6'}`}>Chat{unreadCount > 0 ? <span className="ml-2 rounded-full bg-fuchsia-400/80 px-1.5 py-0.5 text-[10px] font-black text-white">{unreadCount}</span> : null}</button>
               <button type="button" onClick={() => setRightPanelTab('users')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'users' ? 'bg-cyan-300/16 text-cyan-50' : 'hover:bg-white/6'}`}>Users</button>
+              <button type="button" onClick={() => setRightPanelTab('leaderboard')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'leaderboard' ? 'bg-cyan-300/16 text-cyan-50' : 'hover:bg-white/6'}`}>Top</button>
             </div>
           </div>
 
           {rightPanelTab === 'chat' ? (
           <div className="relative mt-4">
             <div className="pointer-events-none absolute inset-x-0 top-0 z-10 h-12 rounded-t-[1.2rem] bg-[linear-gradient(180deg,rgba(4,10,16,0.95),rgba(4,10,16,0.55),transparent)]" />
-            <div ref={chatScrollRef} className="chat-scrollbar max-h-[46rem] space-y-1.5 overflow-y-auto rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-2.5 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
+            <div ref={chatScrollRef} className={`chat-scrollbar space-y-1.5 overflow-y-auto rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-2.5 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)] ${isWideLayout ? 'max-h-[52rem]' : 'max-h-[46rem]'}`}>
             {displayedMessages.length > 0 ? (
               displayedMessages.map((message) => (
                 <div key={message.id}>
@@ -298,7 +347,7 @@ export function RoomPageView({
             )}
             </div>
           </div>
-          ) : (
+          ) : rightPanelTab === 'users' ? (
             <div className="mt-4 space-y-3 rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-3 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
               {state.members.length > 0 ? (
                 state.members.map((member) => (
@@ -307,7 +356,7 @@ export function RoomPageView({
                       <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" />
                       <div className="min-w-0">
                         <p className="truncate text-sm font-semibold text-white/90">{member.label}</p>
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">{member.online ? 'en ligne' : 'hors piste'}</p>
+                        <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">{member.online ? 'en ligne' : 'hors piste'} · lvl {member.avatarProgression?.level ?? 1}</p>
                       </div>
                     </div>
                     <span className={`rounded-full border px-3 py-1 text-[10px] ${roleAccent[member.role]}`}>{roleLabels[member.role]}</span>
@@ -316,6 +365,26 @@ export function RoomPageView({
               ) : (
                 <div className="rounded-[1rem] border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/55">Personne à afficher pour l’instant.</div>
               )}
+            </div>
+          ) : (
+            <div className="mt-4 space-y-3 rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-3 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
+              <div className="flex items-center justify-between rounded-[1rem] border border-gold/15 bg-gold/10 px-3 py-2 text-[11px] text-gold/90">
+                <span>Classement room</span>
+                <span>{leaderboardEntries.length} / 50</span>
+              </div>
+              {leaderboardEntries.map((entry) => (
+                <div key={entry.id} className={`flex items-center justify-between rounded-[1rem] border px-3 py-3 ${entry.isCurrentUser ? 'border-fuchsia-300/25 bg-fuchsia-300/10' : 'border-white/8 bg-white/5'}`}>
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/25 text-xs font-black text-white/78">{entry.medal ?? `#${entry.rank}`}</div>
+                    <AvatarDisplay avatar={entry.avatar} label={entry.label} size="sm" />
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-semibold text-white/92">{entry.label}</p>
+                      <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">lvl {entry.level} · {formatXp(entry.xp)}</p>
+                    </div>
+                  </div>
+                  <span className={`rounded-full border px-3 py-1 text-[10px] ${entry.online ? 'border-emerald-400/25 bg-emerald-400/10 text-emerald-50' : 'border-white/10 bg-white/5 text-white/60'}`}>{entry.online ? 'live' : 'idle'}</span>
+                </div>
+              ))}
             </div>
           )}
           {chatComposer && state.currentUser.isLoggedIn && rightPanelTab === 'chat' ? (
@@ -358,7 +427,7 @@ export function RoomPageView({
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
+      <div className={`grid gap-4 ${isWideLayout ? 'xl:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[340px_minmax(0,1fr)]' : 'xl:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]'}`}>
         <aside className="space-y-5">
           <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(14,13,19,0.96),rgba(10,10,14,0.95))] p-5">
             <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Audience</p>
@@ -394,7 +463,7 @@ export function RoomPageView({
           </div>
         </aside>
 
-        <div className="space-y-5">
+        <div className={`space-y-5 ${isWideLayout ? '2xl:grid 2xl:grid-cols-[minmax(0,1.2fr)_minmax(380px,0.8fr)] 2xl:gap-5 2xl:space-y-0' : ''}`}>
           <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(15,11,18,0.98),rgba(9,9,12,0.96))] p-6">
             <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Queue</p>
             <h3 className="mt-3 text-2xl font-black text-white">File collaborative</h3>
