@@ -6,6 +6,7 @@ import { SceneAudioControlBar } from '@/components/scene-audio-control-bar';
 import { AudioEngine, useAudioEngine } from '@/lib/audio-engine';
 import { globalAudioController, useGlobalAudioController } from '@/lib/audio-controller';
 import type { PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomReactionSummary, RoomReactionType } from '@/lib/rooms';
+import { assignPitSlots, defaultPitSlots } from '@/lib/pit-layout';
 import { YouTubeAudioAdapter, type YouTubePlayerFactory, type YouTubeStateMap } from '@/lib/youtube-audio-adapter';
 
 declare global {
@@ -105,8 +106,9 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
   const currentTrack = track;
   const syncedMembers = members.filter((member) => member.online);
   const syncedCount = syncedMembers.length;
-  const crowdMembers = members.filter((member) => member.role !== 'owner').slice(0, 12);
+  const crowdMembers = members.filter((member) => member.role !== 'owner').slice(0, defaultPitSlots.length);
   const djMember = members.find((member) => member.role === 'owner');
+  const pitAssignments = assignPitSlots(crowdMembers);
   const liveOffset = engineState.playbackState === 'playing' ? engineState.targetOffsetSeconds : engineState.actualOffsetSeconds;
 
   const stageBadge = useMemo(() => {
@@ -432,36 +434,60 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                     <div className="rounded-full border border-fuchsia-300/12 bg-fuchsia-300/6 px-3 py-2 text-center text-fuchsia-100/55">crowd heat</div>
                     <div className="rounded-full border border-cyan-300/12 bg-cyan-300/6 px-3 py-2 text-center text-cyan-100/55">live listeners</div>
                   </div>
-                  <div className="flex min-h-[14.2rem] flex-wrap items-end justify-center gap-x-3 gap-y-4 pb-1">
-                    {crowdMembers.length > 0 ? (
-                      crowdMembers.map((member, index) => {
-                        const reaction = reactions?.userReactions?.[member.id] ?? null;
-                        const memberMood = getMemberMood(member.id);
-                        const laneHeight = memberMood === 'hype' ? 'h-[8rem]' : memberMood === 'groove' ? 'h-[7.4rem]' : 'h-[6.4rem]';
-                        const glow = reaction === 'woot'
+                  <div className="relative min-h-[20rem] overflow-hidden rounded-[1.25rem] border border-white/6 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] pb-2">
+                    {defaultPitSlots.map((slot) => {
+                      const assigned = pitAssignments.find((entry) => entry.slot.id === slot.id);
+                      const member = assigned?.member;
+                      const reaction = member ? reactions?.userReactions?.[member.id] ?? null : null;
+                      const memberMood = member ? getMemberMood(member.id) : 'idle';
+                      const slotGlow = member
+                        ? reaction === 'woot'
                           ? 'border-fuchsia-300/30 bg-fuchsia-300/12 shadow-[0_0_22px_rgba(217,70,239,0.14)]'
                           : member.online
                             ? 'border-cyan-300/25 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,0.08)]'
-                            : 'border-white/10 bg-white/5';
+                            : 'border-white/10 bg-white/5'
+                        : 'border-white/8 bg-white/[0.03]';
 
-                        return (
-                          <div key={member.id} className="flex min-w-[5.9rem] max-w-[5.9rem] flex-col items-center justify-end" style={{ transitionDelay: `${index * 40}ms` }}>
-                            <div className={`mb-1 h-2 w-2 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.7)]' : 'bg-white/20'}`} />
-                            <div className={`relative w-[4.9rem] rounded-[1.2rem_1.2rem_0.7rem_0.7rem] border transition ${laneHeight} ${glow}`}>
-                              <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-5">
-                                <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" mood={memberMood} raisedHand={reaction === 'grab'} badge={reaction === 'grab' ? 'Wants this track' : undefined} />
-                              </div>
+                      return (
+                        <div
+                          key={slot.id}
+                          className="absolute"
+                          style={{
+                            left: `${slot.x}%`,
+                            top: `${slot.y}%`,
+                            transform: `translate(-50%, 0) scale(${slot.scale})`,
+                            zIndex: slot.zIndex,
+                          }}
+                        >
+                          <div className="flex w-[4.9rem] flex-col items-center justify-end">
+                            <div className={`mb-1 h-2 w-2 rounded-full ${member?.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.7)]' : 'bg-white/16'}`} />
+                            <div className={`relative h-[6.8rem] w-[4.9rem] rounded-[1.2rem_1.2rem_0.7rem_0.7rem] border transition ${slotGlow}`}>
                               <div className="absolute inset-x-3 top-3 h-1 rounded-full bg-white/10" />
                               <div className="absolute inset-x-2 bottom-2 h-8 rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />
+                              {member ? (
+                                <>
+                                  <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-5">
+                                    <AvatarDisplay
+                                      avatar={member.avatar}
+                                      label={member.label}
+                                      size="sm"
+                                      mood={memberMood}
+                                      raisedHand={reaction === 'grab'}
+                                      badge={reaction === 'grab' ? 'Wants this track' : undefined}
+                                    />
+                                  </div>
+                                  <p className="absolute left-1/2 top-[4.9rem] max-w-[4.8rem] -translate-x-1/2 truncate text-center text-[11px] font-semibold text-white/82">{member.label}</p>
+                                  <p className="absolute left-1/2 top-[5.95rem] -translate-x-1/2 text-[9px] uppercase tracking-[0.16em] text-white/45">{reaction === 'woot' ? 'dancing' : reaction === 'meh' ? 'meh' : reaction === 'grab' ? 'grab' : 'idle'}</p>
+                                </>
+                              ) : (
+                                <div className="absolute inset-0 flex items-center justify-center text-[9px] uppercase tracking-[0.16em] text-white/18">empty</div>
+                              )}
                             </div>
-                            <p className="mt-2 max-w-[4.8rem] truncate text-center text-[11px] font-semibold text-white/82">{member.label}</p>
-                            <p className="mt-1 text-[9px] uppercase tracking-[0.16em] text-white/45">{reaction === 'woot' ? 'dancing' : reaction === 'meh' ? 'meh' : reaction === 'grab' ? 'grab' : 'idle'}</p>
                           </div>
-                        );
-                      })
-                    ) : (
-                      <div className="rounded-full border border-white/10 bg-white/5 px-4 py-3 text-sm text-white/55">La fosse est encore vide.</div>
-                    )}
+                        </div>
+                      );
+                    })}
+                    {crowdMembers.length === 0 ? <div className="absolute inset-x-0 bottom-2 text-center text-sm text-white/45">La fosse est encore vide.</div> : null}
                   </div>
                 </div>
               </div>

@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.36] - 2026-05-07
+
+### Added
+- Fondation `avatar-catalog` pour préparer un vrai système de skins, rareté, accessoires et loadouts
+- Helpers `xp` et `leaderboard` pour structurer la progression et le classement avant branchement serveur
+- Specs détaillées pour le système avatars/pit et le futur système XP/leaderboard
+
+### Changed
+- La fosse live s’appuie maintenant sur un layout à slots fixes orienté plug.dj, prêt à monter jusqu’à 44 places audience
+
 ## [1.6.35] - 2026-05-07
 
 ### Changed
