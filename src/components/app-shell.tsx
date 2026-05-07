@@ -20,7 +20,7 @@ const nav = [
 
 export function AppShell({ children, eyebrow, title, description, actions }: AppShellProps) {
   return (
-    <main className="mx-auto min-h-screen max-w-6xl px-6 py-8 md:px-10 md:py-12">
+    <main className="mx-auto min-h-screen w-full max-w-[1600px] px-5 py-8 md:px-8 md:py-12 2xl:max-w-[1720px]">
       <header className="mb-10 rounded-[2rem] border border-white/10 bg-black/20 p-5 backdrop-blur">
         <div className="flex flex-col gap-6 md:flex-row md:items-center md:justify-between">
           <div>
@@ -33,7 +33,7 @@ export function AppShell({ children, eyebrow, title, description, actions }: App
             <div className="mt-4 space-y-3">
               {eyebrow ? <p className="text-sm uppercase tracking-[0.25em] text-gold/75">{eyebrow}</p> : null}
               <h1 className="text-4xl font-black tracking-tight md:text-6xl">{title}</h1>
-              <p className="max-w-3xl text-base text-white/72 md:text-lg">{description}</p>
+              <p className="max-w-4xl text-base text-white/72 md:text-lg">{description}</p>
             </div>
           </div>
 

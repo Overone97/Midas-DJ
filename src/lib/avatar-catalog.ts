@@ -183,3 +183,56 @@ export function createDefaultAvatarProgression(): AvatarProgression {
     premiumGems: 0,
   };
 }
+
+const legacySpeciesToSkin: Record<AvatarSpecies, string> = {
+  bunny: 'animal-fox-neon',
+  panda: 'animal-fox-neon',
+  bear: 'animal-fox-neon',
+  dragon: 'animal-dragon-club',
+  cat: 'animal-fox-neon',
+};
+
+const legacyAccessoryToCatalog: Partial<Record<AvatarAccessory, string>> = {
+  crown: 'crown-gold',
+  glasses: 'glasses-neon',
+  hat: 'hat-dj',
+  headphones: 'headphones-pro',
+};
+
+export function mapLegacyAvatarToLoadout(avatar?: AvatarConfig | null, currentLoadout?: Partial<AvatarLoadout> | null): AvatarLoadout {
+  const selectedSkinId = currentLoadout?.selectedSkinId
+    ?? (avatar ? legacySpeciesToSkin[avatar.species] : undefined)
+    ?? defaultAvatarLoadout.selectedSkinId;
+
+  const derivedAccessoryIds = Array.isArray(currentLoadout?.equippedAccessoryIds) && currentLoadout.equippedAccessoryIds.length > 0
+    ? currentLoadout.equippedAccessoryIds
+    : (avatar?.accessories ?? []).map((item) => legacyAccessoryToCatalog[item]).filter((item): item is string => Boolean(item));
+
+  return normalizeAvatarLoadout({
+    ...currentLoadout,
+    selectedSkinId,
+    equippedAccessoryIds: derivedAccessoryIds,
+  });
+}
+
+export function normalizeAvatarProgression(input?: Partial<AvatarProgression> | null): AvatarProgression {
+  const fallback = createDefaultAvatarProgression();
+  const xp = typeof input?.xp === 'number' && Number.isFinite(input.xp) && input.xp >= 0 ? Math.floor(input.xp) : fallback.xp;
+  const level = typeof input?.level === 'number' && Number.isFinite(input.level) && input.level >= 1 ? Math.floor(input.level) : fallback.level;
+  const unlockedSkinIds = Array.isArray(input?.unlockedSkinIds)
+    ? Array.from(new Set(input.unlockedSkinIds.filter((id) => avatarSkinCatalog.some((skin) => skin.id === id))))
+    : fallback.unlockedSkinIds;
+  const unlockedAccessoryIds = Array.isArray(input?.unlockedAccessoryIds)
+    ? Array.from(new Set(input.unlockedAccessoryIds.filter((id) => avatarAccessoryCatalog.some((accessory) => accessory.id === id))))
+    : fallback.unlockedAccessoryIds;
+
+  return {
+    xp,
+    level,
+    unlockedSkinIds: unlockedSkinIds.length > 0 ? unlockedSkinIds : fallback.unlockedSkinIds,
+    unlockedAccessoryIds,
+    softCoins: typeof input?.softCoins === 'number' && Number.isFinite(input.softCoins) && input.softCoins >= 0 ? Math.floor(input.softCoins) : fallback.softCoins,
+    premiumGems: typeof input?.premiumGems === 'number' && Number.isFinite(input.premiumGems) && input.premiumGems >= 0 ? Math.floor(input.premiumGems) : fallback.premiumGems,
+  };
+}
+import type { AvatarAccessory, AvatarConfig, AvatarSpecies } from '@/lib/avatar';

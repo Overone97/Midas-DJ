@@ -226,7 +226,7 @@ export function RoomPageView({
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px] xl:items-start">
+      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px] xl:items-start 2xl:grid-cols-[minmax(0,1fr)_420px]">
         <div className="rounded-[1.8rem] border border-fuchsia-400/12 bg-[linear-gradient(180deg,rgba(12,10,18,0.96),rgba(7,6,11,0.95))] p-3 shadow-[0_22px_70px_rgba(0,0,0,0.35)]">
           <div className="mb-3 flex items-center justify-between gap-4">
             <div>
@@ -358,7 +358,7 @@ export function RoomPageView({
         </div>
       </div>
 
-      <div className="grid gap-4 xl:grid-cols-[240px_minmax(0,1fr)]">
+      <div className="grid gap-4 xl:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]">
         <aside className="space-y-5">
           <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(14,13,19,0.96),rgba(10,10,14,0.95))] p-5">
             <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Audience</p>
