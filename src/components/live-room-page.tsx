@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { AvatarCustomizer } from '@/components/avatar-customizer';
-import { RoomPageView } from '@/components/room-page';
+import { RoomPageView, type LeaderboardPanelState } from '@/components/room-page';
 import { DEFAULT_AVATAR, loadStoredAvatar, normalizeAvatar, saveStoredAvatar, type AvatarConfig } from '@/lib/avatar';
 import { createDefaultAvatarProgression, mapLegacyAvatarToLoadout, normalizeAvatarLoadout, normalizeAvatarProgression, type AvatarLoadout, type AvatarProgression } from '@/lib/avatar-catalog';
 import type { LeaderboardPayload, LeaderboardTab } from '@/lib/leaderboard';
@@ -282,15 +282,25 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   const [avatarSubmitting, setAvatarSubmitting] = useState(false);
   const [avatarDraft, setAvatarDraft] = useState<AvatarConfig>(initialState.currentUser.avatar ?? DEFAULT_AVATAR);
   const [xpFeed, setXpFeed] = useState<Array<{ id: string; action: XpActionKey; amount: number; reason: string; createdAt: string; leveledUp?: boolean }>>([]);
-  const [leaderboardData, setLeaderboardData] = useState<Partial<Record<LeaderboardTab, LeaderboardPayload>>>({});
+  const [leaderboardState, setLeaderboardState] = useState<Partial<Record<LeaderboardTab, LeaderboardPanelState>>>({});
 
-  async function refreshLeaderboards(roomId: string, currentUserId?: string) {
+  async function refreshLeaderboards(roomId: string, currentUserId?: string, options?: { tabs?: LeaderboardTab[]; silent?: boolean }) {
     const supabase = getSupabaseBrowserClient();
     if (!supabase) {
       return;
     }
 
-    const tabs: LeaderboardTab[] = ['best_listeners', 'best_djs', 'top_day', 'top_week'];
+    const tabs = options?.tabs ?? ['best_listeners', 'best_djs', 'top_day', 'top_week'];
+
+    if (!options?.silent) {
+      setLeaderboardState((current) => ({
+        ...current,
+        ...Object.fromEntries(
+          tabs.map((tab) => [tab, { ...(current[tab] ?? {}), status: 'loading', error: null } satisfies LeaderboardPanelState]),
+        ),
+      }));
+    }
+
     const results = await Promise.all(
       tabs.map(async (tab) => {
         const { data, error } = await supabase.rpc('get_room_leaderboard', {
@@ -300,7 +310,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         });
 
         if (error) {
-          return [tab, null] as const;
+          return [tab, { status: 'error', error: error.message, payload: undefined } satisfies LeaderboardPanelState] as const;
         }
 
         const rows = ((data as LeaderboardRpcRow[] | null) ?? []).map((entry) => ({
@@ -311,15 +321,25 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           avatarAccessoryIds: entry.avatar_accessory_ids ?? undefined,
           level: entry.level,
           score: Number(entry.score),
-          medal: entry.rank === 1 ? 'gold' : entry.rank === 2 ? 'silver' : entry.rank === 3 ? 'bronze' : undefined,
+          medal: entry.rank === 1 ? ('gold' as const) : entry.rank === 2 ? ('silver' as const) : entry.rank === 3 ? ('bronze' as const) : undefined,
           isCurrentUser: entry.user_id === currentUserId,
         }));
 
-        return [tab, { tab, generatedAt: new Date().toISOString(), entries: rows, currentUserEntry: rows.find((entry) => entry.userId === currentUserId) ?? null }] as const;
+        const payload: LeaderboardPayload = {
+          tab,
+          generatedAt: new Date().toISOString(),
+          entries: rows,
+          currentUserEntry: rows.find((entry) => entry.userId === currentUserId) ?? null,
+        };
+
+        return [tab, { status: 'ready', error: null, payload, updatedAt: payload.generatedAt } satisfies LeaderboardPanelState] as const;
       }),
     );
 
-    setLeaderboardData(Object.fromEntries(results.filter((entry) => entry[1] !== null)) as Partial<Record<LeaderboardTab, LeaderboardPayload>>);
+    setLeaderboardState((current) => ({
+      ...current,
+      ...Object.fromEntries(results),
+    }));
   }
 
   useEffect(() => {
@@ -824,10 +844,10 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
               ),
             }));
 
-            void refreshLeaderboards(roomId, state.currentUser.id);
+            void refreshLeaderboards(roomId, state.currentUser.id, { silent: true });
           })
           .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'xp_events', filter: `room_id=eq.${roomId}` }, () => {
-            void refreshLeaderboards(roomId, state.currentUser.id);
+            void refreshLeaderboards(roomId, state.currentUser.id, { silent: true });
           })
           .subscribe()
       : null;
@@ -838,6 +858,10 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     void refreshReactions();
     void refreshViewerProgression();
     void refreshLeaderboards(roomId, state.currentUser.id);
+
+    const leaderboardRefreshInterval = window.setInterval(() => {
+      void refreshLeaderboards(roomId, state.currentUser.id, { silent: true });
+    }, 15000);
 
     const presenceXpInterval = state.currentUser.isLoggedIn
       ? window.setInterval(() => {
@@ -858,6 +882,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       if (xpEventsChannel) {
         void supabase.removeChannel(xpEventsChannel);
       }
+      window.clearInterval(leaderboardRefreshInterval);
       if (presenceXpInterval) {
         window.clearInterval(presenceXpInterval);
       }
@@ -1275,7 +1300,12 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           onReact: (reaction) => void handleReaction(reaction),
         }}
         xpFeed={xpFeed}
-        leaderboardData={leaderboardData}
+        leaderboardState={leaderboardState}
+        onLeaderboardTabChange={(tab) => {
+          if (state.room.id) {
+            void refreshLeaderboards(state.room.id, state.currentUser.id, { tabs: [tab], silent: true });
+          }
+        }}
         avatarControls={{
           open: avatarEditorOpen,
           submitting: avatarSubmitting,
