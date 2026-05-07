@@ -107,6 +107,7 @@ export function RoomPageView({
   const currentTrack = queueItems.find((item) => item.id === state.playback?.currentQueueItemId) ?? queueItems.find((item) => item.status === 'playing') ?? queueItems[0];
   const chatMessages = state.chat?.messages ?? [];
   const chatScrollRef = useRef<HTMLDivElement | null>(null);
+  const shouldAutoScrollRef = useRef(true);
   const [rightPanelTab, setRightPanelTab] = useState<'chat' | 'users'>('chat');
   const [lastSeenMessageId, setLastSeenMessageId] = useState<string | null>(chatMessages.at(-1)?.id ?? null);
 
@@ -135,12 +136,11 @@ export function RoomPageView({
 
   useEffect(() => {
     const node = chatScrollRef.current;
-    if (!node) {
+    if (!node || rightPanelTab !== 'chat') {
       return;
     }
 
-    const shouldFollow = rightPanelTab === 'chat' && isNearBottom(node);
-    if (shouldFollow) {
+    if (shouldAutoScrollRef.current) {
       node.scrollTo({ top: node.scrollHeight, behavior: 'smooth' });
       if (chatMessages.length > 0) {
         setLastSeenMessageId(chatMessages.at(-1)?.id ?? null);
@@ -159,7 +159,10 @@ export function RoomPageView({
     }
 
     const handleScroll = () => {
-      if (isNearBottom(node) && chatMessages.length > 0) {
+      const nearBottom = isNearBottom(node);
+      shouldAutoScrollRef.current = nearBottom;
+
+      if (nearBottom && chatMessages.length > 0) {
         setLastSeenMessageId(chatMessages.at(-1)?.id ?? null);
       }
     };
@@ -172,6 +175,7 @@ export function RoomPageView({
   useEffect(() => {
     if (rightPanelTab === 'chat' && chatMessages.length > 0 && !firstUnreadMessageId) {
       setLastSeenMessageId(chatMessages.at(-1)?.id ?? null);
+      shouldAutoScrollRef.current = true;
     }
   }, [chatMessages, firstUnreadMessageId, rightPanelTab]);
 

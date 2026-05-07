@@ -95,6 +95,10 @@ export class AudioEngine {
         if (this.state.playbackState === 'loading') {
           this.setState({ playbackState: 'ready' });
         }
+
+        if (this.playback) {
+          void this.syncToPlayback(this.playback);
+        }
       }),
       adapter.on('statechange', ({ data }) => {
         const playerState = adapter.getPlayerState();
