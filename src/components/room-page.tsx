@@ -5,7 +5,9 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { AvatarDisplay } from '@/components/avatar-display';
 import { SyncScenePlayer } from '@/components/sync-scene-player';
 import type { AvatarConfig } from '@/lib/avatar';
+import type { LeaderboardPayload, LeaderboardTab } from '@/lib/leaderboard';
 import type { RoomPageState, RoomReactionSummary, RoomReactionType, RoomRole } from '@/lib/rooms';
+import { createXpSnapshot, xpRequiredForLevel, type XpActionKey } from '@/lib/xp';
 
 type QueueComposerProps = {
   url: string;
@@ -54,6 +56,15 @@ type ReactionControlsProps = {
   onReact: (reaction: RoomReactionType) => void;
 };
 
+type XpToast = {
+  id: string;
+  action: XpActionKey;
+  amount: number;
+  reason: string;
+  createdAt: string;
+  leveledUp?: boolean;
+};
+
 const roleLabels: Record<RoomRole, string> = {
   owner: 'Owner',
   mod: 'Mod',
@@ -95,6 +106,8 @@ export function RoomPageView({
   chatComposer,
   avatarControls,
   reactionControls,
+  xpFeed,
+  leaderboardData,
 }: {
   state: RoomPageState;
   queueComposer?: QueueComposerProps;
@@ -102,6 +115,8 @@ export function RoomPageView({
   chatComposer?: ChatComposerProps;
   avatarControls?: AvatarControlsProps;
   reactionControls?: ReactionControlsProps;
+  xpFeed?: XpToast[];
+  leaderboardData?: Partial<Record<LeaderboardTab, LeaderboardPayload>>;
 }) {
   const denied = state.status === 'forbidden';
   const missing = state.status === 'missing';
@@ -114,6 +129,7 @@ export function RoomPageView({
   const shouldAutoScrollRef = useRef(true);
   const [rightPanelTab, setRightPanelTab] = useState<'chat' | 'users' | 'leaderboard'>('chat');
   const [layoutMode, setLayoutMode] = useState<'default' | 'wide'>('wide');
+  const [leaderboardTab, setLeaderboardTab] = useState<LeaderboardTab>('best_listeners');
   const [lastSeenMessageId, setLastSeenMessageId] = useState<string | null>(chatMessages.at(-1)?.id ?? null);
 
   const displayedMessages = useMemo(() => chatMessages.slice(-24), [chatMessages]);
@@ -194,6 +210,21 @@ export function RoomPageView({
   }, [displayedMessages, firstUnreadMessageId]);
 
   const leaderboardEntries = useMemo(() => {
+    const serverEntries = leaderboardData?.[leaderboardTab]?.entries;
+    if (serverEntries && serverEntries.length > 0) {
+      return serverEntries.map((entry) => ({
+        id: entry.userId,
+        label: entry.username,
+        avatar: undefined,
+        online: state.members.some((member) => member.id === entry.userId && member.online) || state.currentUser.id === entry.userId,
+        xp: entry.score,
+        level: entry.level,
+        rank: entry.rank,
+        medal: entry.medal === 'gold' ? '🥇' : entry.medal === 'silver' ? '🥈' : entry.medal === 'bronze' ? '🥉' : null,
+        isCurrentUser: entry.isCurrentUser ?? entry.userId === state.currentUser.id,
+      }));
+    }
+
     const uniqueMembers = new Map<string, RoomPageState['members'][number]>();
 
     for (const member of state.members) {
@@ -226,13 +257,32 @@ export function RoomPageView({
         medal: index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : null,
         isCurrentUser: member.id === state.currentUser.id,
       }));
-  }, [state.currentUser.avatar, state.currentUser.avatarLoadout, state.currentUser.avatarProgression, state.currentUser.email, state.currentUser.id, state.currentUser.label, state.currentUser.role, state.members]);
+  }, [leaderboardData, leaderboardTab, state.currentUser.avatar, state.currentUser.avatarLoadout, state.currentUser.avatarProgression, state.currentUser.email, state.currentUser.id, state.currentUser.label, state.currentUser.role, state.members]);
 
   const reactionSummary: RoomReactionSummary | undefined = state.reactions;
   const isWideLayout = layoutMode === 'wide';
+  const xpSnapshot = createXpSnapshot(state.currentUser.avatarProgression?.xp ?? 0);
+  const currentLevelFloor = xpRequiredForLevel(xpSnapshot.level);
+  const nextLevelTarget = xpRequiredForLevel(xpSnapshot.level + 1);
+  const xpProgressPercent = nextLevelTarget > currentLevelFloor ? Math.min(100, Math.max(0, (((xpSnapshot.xp - currentLevelFloor) / (nextLevelTarget - currentLevelFloor)) * 100))) : 0;
 
   return (
     <section className="space-y-4">
+      {xpFeed && xpFeed.length > 0 ? (
+        <div className="pointer-events-none fixed right-4 top-4 z-50 flex w-[min(24rem,calc(100vw-2rem))] flex-col gap-2">
+          {xpFeed.map((event) => (
+            <div key={event.id} className={`rounded-[1.1rem] border px-4 py-3 shadow-[0_18px_40px_rgba(0,0,0,0.35)] backdrop-blur ${event.leveledUp ? 'border-gold/30 bg-[linear-gradient(180deg,rgba(251,191,36,0.18),rgba(0,0,0,0.55))] text-gold' : 'border-cyan-300/18 bg-[linear-gradient(180deg,rgba(34,211,238,0.16),rgba(0,0,0,0.55))] text-cyan-50'}`}>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-sm font-black">+{event.amount} XP</p>
+                <p className="text-[10px] uppercase tracking-[0.16em] text-white/55">{new Date(event.createdAt).toLocaleTimeString('fr-BE', { hour: '2-digit', minute: '2-digit' })}</p>
+              </div>
+              <p className="mt-1 text-sm text-white/85">{event.reason}</p>
+              {event.leveledUp ? <p className="mt-1 text-[11px] font-black uppercase tracking-[0.16em] text-gold">Level up</p> : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-[1.6rem] border border-fuchsia-400/15 bg-[radial-gradient(circle_at_top,#fb71851c,transparent_26%),radial-gradient(circle_at_85%_15%,#22d3ee18,transparent_24%),linear-gradient(180deg,#170f23,#09070f)] p-4 shadow-[0_18px_50px_rgba(0,0,0,0.35)]">
         <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
           <div>
@@ -256,6 +306,21 @@ export function RoomPageView({
             </div>
           </div>
         </div>
+
+        {state.currentUser.isLoggedIn ? (
+          <div className="mt-4 rounded-[1.2rem] border border-gold/12 bg-black/25 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-white/76">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.2em] text-gold/72">Progression</p>
+                <p className="mt-1 font-black text-white">Niveau {xpSnapshot.level} · {formatXp(xpSnapshot.xp)}</p>
+              </div>
+              <p className="text-xs text-white/58">Plus que {xpSnapshot.xpToNext} XP pour le niveau suivant</p>
+            </div>
+            <div className="mt-3 h-2 overflow-hidden rounded-full bg-white/10">
+              <div className="h-full rounded-full bg-gradient-to-r from-gold via-amber-300 to-fuchsia-300 transition-all" style={{ width: `${xpProgressPercent}%` }} />
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-3 flex flex-wrap gap-2 text-[10px] text-white/62">
           <span className="rounded-full border border-white/10 bg-black/20 px-3 py-1">slug · {state.room.slug}</span>
@@ -368,6 +433,18 @@ export function RoomPageView({
             </div>
           ) : (
             <div className="mt-4 space-y-3 rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-3 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
+              <div className="grid grid-cols-2 gap-2 rounded-[1rem] border border-white/8 bg-black/20 p-1 text-[10px] font-black uppercase tracking-[0.14em] text-white/62">
+                {([
+                  ['best_listeners', 'Listeners'],
+                  ['best_djs', 'DJs'],
+                  ['top_day', '24h'],
+                  ['top_week', '7j'],
+                ] as const).map(([tab, label]) => (
+                  <button key={tab} type="button" onClick={() => setLeaderboardTab(tab)} className={`rounded-full px-3 py-2 transition ${leaderboardTab === tab ? 'bg-fuchsia-300/16 text-fuchsia-50' : 'hover:bg-white/6'}`}>
+                    {label}
+                  </button>
+                ))}
+              </div>
               <div className="flex items-center justify-between rounded-[1rem] border border-gold/15 bg-gold/10 px-3 py-2 text-[11px] text-gold/90">
                 <span>Classement room</span>
                 <span>{leaderboardEntries.length} / 50</span>
