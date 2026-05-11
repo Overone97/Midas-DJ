@@ -415,7 +415,7 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                     ))}
                   </div>
                 ) : null}
-                <div className={`relative rounded-[1.6rem] border border-cyan-300/8 bg-[linear-gradient(180deg,rgba(20,18,32,0.76),rgba(8,8,14,0.82))] px-4 shadow-[inset_0_0_24px_rgba(34,211,238,0.03)] ${isWideLayout ? 'py-6' : 'py-5'}`}>
+                <div className={`relative overflow-hidden rounded-[1.6rem] bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.06),transparent_38%),linear-gradient(180deg,rgba(20,18,32,0.34),rgba(8,8,14,0.12))] px-4 ${isWideLayout ? 'py-6' : 'py-5'}`}>
                   <div className="pointer-events-none absolute inset-x-6 bottom-[9.8rem] z-[9] h-28 overflow-hidden">
                     {reactionBursts.map((burst, index) => (
                       <div
@@ -431,24 +431,14 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                       </div>
                     ))}
                   </div>
-                  <div className="mb-4 grid grid-cols-3 gap-2 text-[10px] uppercase tracking-[0.16em] text-white/44">
-                    <div className="rounded-full border border-white/8 bg-white/5 px-3 py-2 text-center">front rail</div>
-                    <div className="rounded-full border border-fuchsia-300/12 bg-fuchsia-300/6 px-3 py-2 text-center text-fuchsia-100/55">crowd heat</div>
-                    <div className="rounded-full border border-cyan-300/12 bg-cyan-300/6 px-3 py-2 text-center text-cyan-100/55">live listeners</div>
-                  </div>
-                  <div className={`relative overflow-hidden rounded-[1.25rem] border border-white/6 bg-[linear-gradient(180deg,rgba(255,255,255,0.02),rgba(255,255,255,0.01))] pb-2 ${isWideLayout ? 'min-h-[24rem]' : 'min-h-[20rem]'}`}>
+                  <div className={`relative overflow-hidden pb-2 ${isWideLayout ? 'min-h-[24rem]' : 'min-h-[20rem]'}`}>
+                    <div className="pointer-events-none absolute inset-x-0 bottom-[0.9rem] h-[8.5rem] bg-[radial-gradient(circle_at_50%_0%,rgba(244,114,182,0.08),transparent_52%),linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,0.03))]" />
                     {defaultPitSlots.map((slot) => {
                       const assigned = pitAssignments.find((entry) => entry.slot.id === slot.id);
                       const member = assigned?.member;
                       const reaction = member ? reactions?.userReactions?.[member.id] ?? null : null;
                       const memberMood = member ? getMemberMood(member.id) : 'idle';
-                      const slotGlow = member
-                        ? reaction === 'woot'
-                          ? 'border-fuchsia-300/30 bg-fuchsia-300/12 shadow-[0_0_22px_rgba(217,70,239,0.14)]'
-                          : member.online
-                            ? 'border-cyan-300/25 bg-cyan-300/10 shadow-[0_0_18px_rgba(34,211,238,0.08)]'
-                            : 'border-white/10 bg-white/5'
-                        : 'border-white/8 bg-white/[0.03]';
+                      const isDancing = reaction === 'woot' || memberMood === 'hype' || memberMood === 'groove';
 
                       return (
                         <div
@@ -459,16 +449,16 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                             top: `${slot.y}%`,
                             transform: `translate(-50%, 0) scale(${slot.scale})`,
                             zIndex: slot.zIndex,
+                            opacity: member ? 1 : 0,
                           }}
                         >
                           <div className="flex w-[4.9rem] flex-col items-center justify-end">
-                            <div className={`mb-1 h-2 w-2 rounded-full ${member?.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.7)]' : 'bg-white/16'}`} />
-                            <div className={`relative h-[6.8rem] w-[4.9rem] rounded-[1.2rem_1.2rem_0.7rem_0.7rem] border transition ${slotGlow}`}>
-                              <div className="absolute inset-x-3 top-3 h-1 rounded-full bg-white/10" />
-                              <div className="absolute inset-x-2 bottom-2 h-8 rounded-full bg-[linear-gradient(180deg,rgba(255,255,255,0.08),rgba(255,255,255,0.02))]" />
-                              {member ? (
-                                <>
-                                  <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-5">
+                            {member ? (
+                              <>
+                                <div className={`absolute bottom-[1.15rem] left-1/2 h-10 w-12 -translate-x-1/2 rounded-full blur-xl transition-all ${isDancing ? 'bg-fuchsia-400/28' : member.online ? 'bg-cyan-300/18' : 'bg-white/8'}`} />
+                                <div className={`absolute bottom-[0.8rem] left-1/2 h-3 w-11 -translate-x-1/2 rounded-full transition-all ${isDancing ? 'bg-fuchsia-300/30 shadow-[0_0_18px_rgba(217,70,239,0.22)]' : member.online ? 'bg-cyan-300/18' : 'bg-white/8'}`} />
+                                <div className="relative flex h-[6.8rem] w-[4.9rem] items-start justify-center">
+                                  <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-3">
                                     <AvatarDisplay
                                       avatar={member.avatar}
                                       label={member.label}
@@ -478,13 +468,11 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                                       badge={reaction === 'grab' ? 'Wants this track' : undefined}
                                     />
                                   </div>
-                                  <p className="absolute left-1/2 top-[4.9rem] max-w-[4.8rem] -translate-x-1/2 truncate text-center text-[11px] font-semibold text-white/82">{member.label}</p>
-                                  <p className="absolute left-1/2 top-[5.95rem] -translate-x-1/2 text-[9px] uppercase tracking-[0.16em] text-white/45">{reaction === 'woot' ? 'dancing' : reaction === 'meh' ? 'meh' : reaction === 'grab' ? 'grab' : 'idle'}</p>
-                                </>
-                              ) : (
-                                <div className="absolute inset-0 flex items-center justify-center text-[9px] uppercase tracking-[0.16em] text-white/18">empty</div>
-                              )}
-                            </div>
+                                  <p className={`absolute left-1/2 top-[4.8rem] max-w-[5.8rem] -translate-x-1/2 truncate text-center text-[11px] font-semibold transition ${isDancing ? 'text-white' : 'text-white/76'}`}>{member.label}</p>
+                                  <p className={`absolute left-1/2 top-[5.9rem] -translate-x-1/2 text-[9px] uppercase tracking-[0.18em] transition ${isDancing ? 'text-fuchsia-200/82' : reaction === 'meh' ? 'text-white/48' : reaction === 'grab' ? 'text-cyan-100/76' : 'text-white/34'}`}>{reaction === 'woot' ? 'dancing' : reaction === 'meh' ? 'meh' : reaction === 'grab' ? 'grab' : member.online ? 'idle' : 'away'}</p>
+                                </div>
+                              </>
+                            ) : null}
                           </div>
                         </div>
                       );
