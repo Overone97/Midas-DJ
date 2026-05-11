@@ -328,6 +328,10 @@ export class AudioEngine {
   }
 
   private log(event: string, payload?: Record<string, unknown>) {
+    if (process.env.NODE_ENV !== 'development') {
+      return;
+    }
+
     console.info(`[AUDIO] ${event}`, payload ?? {});
   }
 
