@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { AvatarCustomizer } from '@/components/avatar-customizer';
 import { RoomPageView, type LeaderboardPanelState } from '@/components/room-page';
 import { DEFAULT_AVATAR, loadStoredAvatar, normalizeAvatar, saveStoredAvatar, type AvatarConfig } from '@/lib/avatar';
-import { createDefaultAvatarProgression, mapLegacyAvatarToLoadout, normalizeAvatarLoadout, normalizeAvatarProgression, type AvatarLoadout, type AvatarProgression } from '@/lib/avatar-catalog';
+import { createDefaultAvatarProgression, mapLegacyAvatarToLoadout, normalizeAvatarLoadout, normalizeAvatarProgression, projectLoadoutToAvatar, sanitizeLoadoutForProgression, type AvatarLoadout, type AvatarProgression } from '@/lib/avatar-catalog';
 import type { LeaderboardPayload, LeaderboardTab } from '@/lib/leaderboard';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
 import type { ChatMessagePreview, PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomPageState, RoomReactionSummary, RoomReactionType, RoomRole } from '@/lib/rooms';
@@ -281,6 +281,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   const [avatarEditorOpen, setAvatarEditorOpen] = useState(false);
   const [avatarSubmitting, setAvatarSubmitting] = useState(false);
   const [avatarDraft, setAvatarDraft] = useState<AvatarConfig>(initialState.currentUser.avatar ?? DEFAULT_AVATAR);
+  const [avatarLoadoutDraft, setAvatarLoadoutDraft] = useState<AvatarLoadout>(normalizeAvatarLoadout(initialState.currentUser.avatarLoadout));
   const [xpFeed, setXpFeed] = useState<Array<{ id: string; action: XpActionKey; amount: number; reason: string; createdAt: string; leveledUp?: boolean }>>([]);
   const [leaderboardState, setLeaderboardState] = useState<Partial<Record<LeaderboardTab, LeaderboardPanelState>>>({});
 
@@ -345,6 +346,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   useEffect(() => {
     setState(initialState);
     setAvatarDraft(initialState.currentUser.avatar ?? DEFAULT_AVATAR);
+    setAvatarLoadoutDraft(normalizeAvatarLoadout(initialState.currentUser.avatarLoadout));
   }, [initialState]);
 
   useEffect(() => {
@@ -488,6 +490,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       });
 
       setAvatarDraft(viewerAvatar);
+      setAvatarLoadoutDraft(viewerLoadout);
       void refreshLeaderboards(room.id, user?.id);
     }
 
@@ -893,6 +896,10 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     setAvatarDraft(state.currentUser.avatar ?? DEFAULT_AVATAR);
   }, [state.currentUser.avatar]);
 
+  useEffect(() => {
+    setAvatarLoadoutDraft(normalizeAvatarLoadout(state.currentUser.avatarLoadout));
+  }, [state.currentUser.avatarLoadout]);
+
   async function ensurePlaybackStateForFirstTrack(newQueueItemId: string) {
     const supabase = getSupabaseBrowserClient();
     if (!supabase || !state.room.id || !state.room.ownerId) {
@@ -1185,14 +1192,13 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   async function handleAvatarSave() {
     const supabase = getSupabaseBrowserClient();
     const userId = state.currentUser.id;
-    const nextAvatar = normalizeAvatar(avatarDraft);
-    const nextLoadout = normalizeAvatarLoadout(
-      mapLegacyAvatarToLoadout(nextAvatar, state.currentUser.avatarLoadout),
-    );
-    const nextProgression = normalizeAvatarProgression({
-      ...(state.currentUser.avatarProgression ?? createDefaultAvatarProgression()),
-      unlockedSkinIds: Array.from(new Set([...(state.currentUser.avatarProgression?.unlockedSkinIds ?? []), nextLoadout.selectedSkinId])),
-      unlockedAccessoryIds: Array.from(new Set([...(state.currentUser.avatarProgression?.unlockedAccessoryIds ?? []), ...nextLoadout.equippedAccessoryIds])),
+    const nextProgression = normalizeAvatarProgression(state.currentUser.avatarProgression ?? createDefaultAvatarProgression());
+    const nextLoadout = sanitizeLoadoutForProgression(avatarLoadoutDraft, nextProgression);
+    const nextAvatar = normalizeAvatar(projectLoadoutToAvatar(nextLoadout, avatarDraft));
+    const persistedProgression = normalizeAvatarProgression({
+      ...nextProgression,
+      unlockedSkinIds: Array.from(new Set([...(nextProgression.unlockedSkinIds ?? []), nextLoadout.selectedSkinId])),
+      unlockedAccessoryIds: Array.from(new Set([...(nextProgression.unlockedAccessoryIds ?? []), ...nextLoadout.equippedAccessoryIds])),
     });
 
     saveStoredAvatar(nextAvatar, userId);
@@ -1209,10 +1215,10 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
             avatar_badge: nextAvatar.badge,
             selected_skin_id: nextLoadout.selectedSkinId,
             equipped_accessory_ids: nextLoadout.equippedAccessoryIds,
-            unlocked_skin_ids: nextProgression.unlockedSkinIds,
-            unlocked_accessory_ids: nextProgression.unlockedAccessoryIds,
-            avatar_xp: nextProgression.xp,
-            avatar_level: nextProgression.level,
+            unlocked_skin_ids: persistedProgression.unlockedSkinIds,
+            unlocked_accessory_ids: persistedProgression.unlockedAccessoryIds,
+            avatar_xp: persistedProgression.xp,
+            avatar_level: persistedProgression.level,
           })
           .eq('id', userId);
 
@@ -1223,8 +1229,8 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
       setState((current) => ({
         ...current,
-        currentUser: { ...current.currentUser, avatar: nextAvatar, avatarLoadout: nextLoadout, avatarProgression: nextProgression },
-        members: current.members.map((member) => (member.id === userId ? { ...member, avatar: nextAvatar, avatarLoadout: nextLoadout, avatarProgression: nextProgression } : member)),
+        currentUser: { ...current.currentUser, avatar: nextAvatar, avatarLoadout: nextLoadout, avatarProgression: persistedProgression },
+        members: current.members.map((member) => (member.id === userId ? { ...member, avatar: nextAvatar, avatarLoadout: nextLoadout, avatarProgression: persistedProgression } : member)),
         chat: current.chat
           ? {
               messages: current.chat.messages.map((message) => (message.userId === userId ? { ...message, authorAvatar: nextAvatar } : message)),
@@ -1318,10 +1324,15 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       />
       <AvatarCustomizer
         open={avatarEditorOpen}
-        value={avatarDraft}
+        avatar={avatarDraft}
+        loadout={avatarLoadoutDraft}
+        progression={state.currentUser.avatarProgression ?? createDefaultAvatarProgression()}
         submitting={avatarSubmitting}
         onClose={() => setAvatarEditorOpen(false)}
-        onChange={setAvatarDraft}
+        onChange={({ avatar, loadout }) => {
+          setAvatarDraft(avatar);
+          setAvatarLoadoutDraft(loadout);
+        }}
         onSave={() => void handleAvatarSave()}
       />
     </>

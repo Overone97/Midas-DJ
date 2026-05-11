@@ -50,6 +50,7 @@ export type AvatarAccessoryDefinition = {
   name: string;
   anchor: AvatarAccessoryAnchor;
   rarity: AvatarRarity;
+  unlockLevel?: number;
   compatibleSkinTags?: string[];
   animationOverrides?: AvatarAnimationState[];
   assetUrl?: string;
@@ -72,14 +73,14 @@ export type AvatarProgression = {
 };
 
 export const avatarAccessoryCatalog: AvatarAccessoryDefinition[] = [
-  { id: 'hat-dj', name: 'DJ Hat', anchor: 'head', rarity: 'common', compatibleSkinTags: ['human', 'dj', 'streetwear'] },
-  { id: 'crown-gold', name: 'Gold Crown', anchor: 'head', rarity: 'epic', compatibleSkinTags: ['royal', 'animal', 'human'] },
-  { id: 'glasses-neon', name: 'Neon Glasses', anchor: 'face', rarity: 'rare', compatibleSkinTags: ['cyberpunk', 'streetwear', 'sci-fi'] },
-  { id: 'mic-handheld', name: 'Handheld Mic', anchor: 'right_hand', rarity: 'common', animationOverrides: ['onDJing', 'onWoot'] },
-  { id: 'guitar-neon', name: 'Neon Guitar', anchor: 'left_hand', rarity: 'rare', animationOverrides: ['dancing', 'onWoot'] },
-  { id: 'synth-mini', name: 'Mini Synth', anchor: 'body', rarity: 'rare', animationOverrides: ['dancing', 'onDJing'] },
-  { id: 'headphones-pro', name: 'Pro Headphones', anchor: 'head', rarity: 'common', compatibleSkinTags: ['dj', 'streetwear', 'animal'] },
-  { id: 'royal-cape', name: 'Royal Cape', anchor: 'back', rarity: 'epic', compatibleSkinTags: ['royal', 'fantasy'] },
+  { id: 'hat-dj', name: 'DJ Hat', anchor: 'head', rarity: 'common', unlockLevel: 1, compatibleSkinTags: ['human', 'dj', 'streetwear'] },
+  { id: 'crown-gold', name: 'Gold Crown', anchor: 'head', rarity: 'epic', unlockLevel: 12, compatibleSkinTags: ['royal', 'animal', 'human'] },
+  { id: 'glasses-neon', name: 'Neon Glasses', anchor: 'face', rarity: 'rare', unlockLevel: 6, compatibleSkinTags: ['cyberpunk', 'streetwear', 'sci-fi'] },
+  { id: 'mic-handheld', name: 'Handheld Mic', anchor: 'right_hand', rarity: 'common', unlockLevel: 3, animationOverrides: ['onDJing', 'onWoot'] },
+  { id: 'guitar-neon', name: 'Neon Guitar', anchor: 'left_hand', rarity: 'rare', unlockLevel: 8, animationOverrides: ['dancing', 'onWoot'] },
+  { id: 'synth-mini', name: 'Mini Synth', anchor: 'body', rarity: 'rare', unlockLevel: 9, animationOverrides: ['dancing', 'onDJing'] },
+  { id: 'headphones-pro', name: 'Pro Headphones', anchor: 'head', rarity: 'common', unlockLevel: 1, compatibleSkinTags: ['dj', 'streetwear', 'animal'] },
+  { id: 'royal-cape', name: 'Royal Cape', anchor: 'back', rarity: 'epic', unlockLevel: 10, compatibleSkinTags: ['royal', 'fantasy'] },
 ];
 
 export const avatarSkinCatalog: AvatarSkinDefinition[] = [
@@ -235,4 +236,78 @@ export function normalizeAvatarProgression(input?: Partial<AvatarProgression> | 
     premiumGems: typeof input?.premiumGems === 'number' && Number.isFinite(input.premiumGems) && input.premiumGems >= 0 ? Math.floor(input.premiumGems) : fallback.premiumGems,
   };
 }
-import type { AvatarAccessory, AvatarConfig, AvatarSpecies } from '@/lib/avatar';
+
+export function isSkinUnlocked(skinId: string, progression?: Partial<AvatarProgression> | null) {
+  const skin = getAvatarSkinById(skinId);
+  const normalized = normalizeAvatarProgression(progression);
+  return normalized.unlockedSkinIds.includes(skin.id) || normalized.xp >= (skin.unlockCondition.xpRequired ?? 0);
+}
+
+export function isAccessoryUnlocked(accessoryId: string, progression?: Partial<AvatarProgression> | null) {
+  const accessory = getAvatarAccessoryById(accessoryId);
+  const normalized = normalizeAvatarProgression(progression);
+  if (!accessory) {
+    return false;
+  }
+
+  return normalized.unlockedAccessoryIds.includes(accessory.id) || normalized.level >= (accessory.unlockLevel ?? 1);
+}
+
+export function sanitizeLoadoutForProgression(loadout: Partial<AvatarLoadout> | null | undefined, progression?: Partial<AvatarProgression> | null) {
+  const normalized = normalizeAvatarLoadout(loadout);
+  const selectedSkin = isSkinUnlocked(normalized.selectedSkinId, progression)
+    ? getAvatarSkinById(normalized.selectedSkinId)
+    : getAvatarSkinById(defaultAvatarLoadout.selectedSkinId);
+
+  const equippedAccessoryIds = normalized.equippedAccessoryIds.filter((id) => isAccessoryUnlocked(id, progression) && selectedSkin.supportedAccessories.includes(id));
+
+  return normalizeAvatarLoadout({
+    ...normalized,
+    selectedSkinId: selectedSkin.id,
+    equippedAccessoryIds,
+  });
+}
+
+export function projectLoadoutToAvatar(loadout?: Partial<AvatarLoadout> | null, currentAvatar?: Partial<AvatarConfig> | null): AvatarConfig {
+  const normalized = normalizeAvatarLoadout(loadout);
+  const skin = getAvatarSkinById(normalized.selectedSkinId);
+  const accessoryIds = new Set(normalized.equippedAccessoryIds);
+
+  const species: AvatarSpecies = skin.id === 'animal-dragon-club'
+    ? 'dragon'
+    : skin.id === 'human-cyberpunk-vj'
+      ? 'panda'
+      : skin.id === 'human-dj-booth'
+        ? 'bunny'
+        : skin.id === 'game-pixel-adventurer'
+          ? 'bear'
+          : 'cat';
+
+  const outfitColor: AvatarConfig['outfitColor'] = skin.id === 'animal-dragon-club'
+    ? 'emerald'
+    : skin.id === 'human-cyberpunk-vj'
+      ? 'cyan'
+      : skin.id === 'human-dj-booth'
+        ? 'gold'
+        : skin.id === 'game-pixel-adventurer'
+          ? 'pink'
+          : 'purple';
+
+  const accessories: AvatarAccessory[] = [
+    accessoryIds.has('crown-gold') ? 'crown' : null,
+    accessoryIds.has('glasses-neon') ? 'glasses' : null,
+    accessoryIds.has('hat-dj') ? 'hat' : null,
+    accessoryIds.has('headphones-pro') ? 'headphones' : null,
+  ].filter((item): item is AvatarAccessory => Boolean(item));
+
+  const badge: AvatarConfig['badge'] = accessoryIds.has('crown-gold') ? 'crown' : currentAvatar?.badge === 'mod' || currentAvatar?.badge === 'vip' ? currentAvatar.badge : 'none';
+
+  return normalizeAvatar({
+    species,
+    accessories,
+    outfitColor,
+    badge,
+  });
+}
+
+import { normalizeAvatar, type AvatarAccessory, type AvatarConfig, type AvatarSpecies } from '@/lib/avatar';

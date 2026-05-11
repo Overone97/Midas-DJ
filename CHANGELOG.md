@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.6.41] - 2026-05-11
+
+### Added
+- Avatar lab branché au vrai catalogue de skins/accessoires avec aperçu du prochain unlock
+- Verrouillage des skins par XP et des accessoires par niveau directement dans l’éditeur
+
+### Changed
+- Sélection de skin qui nettoie automatiquement les accessoires incompatibles au lieu de laisser un loadout bancal
+- Projection du loadout vers l’avatar legacy pour garder un rendu cohérent dans toute la room
+
 ## [1.6.38] - 2026-05-07
 
 ### Added
