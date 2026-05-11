@@ -123,6 +123,8 @@ const emptyReactionCounts: Record<RoomReactionType, number> = {
   meh: 0,
 };
 
+const ENABLE_SERVER_LEADERBOARD_RPC = false;
+
 function flattenPresence(state: Record<string, PresenceMeta[] | undefined>) {
   return Object.entries(state).flatMap(([key, metas]) => (metas ?? []).map((meta, index) => ({ key, index, meta })));
 }
@@ -284,6 +286,47 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   const [avatarLoadoutDraft, setAvatarLoadoutDraft] = useState<AvatarLoadout>(normalizeAvatarLoadout(initialState.currentUser.avatarLoadout));
   const [xpFeed, setXpFeed] = useState<Array<{ id: string; action: XpActionKey; amount: number; reason: string; createdAt: string; leveledUp?: boolean }>>([]);
   const [leaderboardState, setLeaderboardState] = useState<Partial<Record<LeaderboardTab, LeaderboardPanelState>>>({});
+  const [leaderboardRpcSupported, setLeaderboardRpcSupported] = useState(ENABLE_SERVER_LEADERBOARD_RPC);
+
+  function buildFallbackLeaderboardPayload(tab: LeaderboardTab, currentUserId?: string): LeaderboardPayload {
+    const entries = [
+      {
+        id: state.currentUser.id ?? 'current-user',
+        label: state.currentUser.label ?? state.currentUser.email?.split('@')[0] ?? 'Guest listener',
+        avatar: state.currentUser.avatar ?? DEFAULT_AVATAR,
+        online: true,
+        xp: state.currentUser.avatarProgression?.xp ?? 0,
+        level: state.currentUser.avatarProgression?.level ?? 1,
+      },
+      ...state.members.map((member) => ({
+        id: member.id,
+        label: member.label,
+        avatar: member.avatar ?? DEFAULT_AVATAR,
+        online: Boolean(member.online),
+        xp: member.avatarProgression?.xp ?? 0,
+        level: member.avatarProgression?.level ?? 1,
+      })),
+    ]
+      .filter((member, index, array) => array.findIndex((entry) => entry.id === member.id) === index)
+      .sort((a, b) => (b.xp - a.xp) || (Number(b.online) - Number(a.online)) || a.label.localeCompare(b.label))
+      .slice(0, 50)
+      .map((member, index) => ({
+        rank: index + 1,
+        userId: member.id,
+        username: member.label,
+        level: member.level,
+        score: member.xp,
+        medal: index === 0 ? ('gold' as const) : index === 1 ? ('silver' as const) : index === 2 ? ('bronze' as const) : undefined,
+        isCurrentUser: member.id === currentUserId,
+      }));
+
+    return {
+      tab,
+      generatedAt: new Date().toISOString(),
+      entries,
+      currentUserEntry: entries.find((entry) => entry.userId === currentUserId) ?? null,
+    };
+  }
 
   async function refreshLeaderboards(roomId: string, currentUserId?: string, options?: { tabs?: LeaderboardTab[]; silent?: boolean }) {
     const supabase = getSupabaseBrowserClient();
@@ -292,6 +335,19 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     }
 
     const tabs = options?.tabs ?? ['best_listeners', 'best_djs', 'top_day', 'top_week'];
+
+    if (!leaderboardRpcSupported) {
+      setLeaderboardState((current) => ({
+        ...current,
+        ...Object.fromEntries(
+          tabs.map((tab) => {
+            const payload = buildFallbackLeaderboardPayload(tab, currentUserId);
+            return [tab, { status: 'ready', error: null, payload, updatedAt: payload.generatedAt } satisfies LeaderboardPanelState];
+          }),
+        ),
+      }));
+      return;
+    }
 
     if (!options?.silent) {
       setLeaderboardState((current) => ({
@@ -304,36 +360,54 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
     const results = await Promise.all(
       tabs.map(async (tab) => {
-        const { data, error } = await supabase.rpc('get_room_leaderboard', {
-          room_id_value: roomId,
-          leaderboard_tab: tab,
-          leaderboard_limit: 50,
-        });
+        try {
+          const { data, error } = await supabase.rpc('get_room_leaderboard', {
+            room_id_value: roomId,
+            leaderboard_tab: tab,
+            leaderboard_limit: 50,
+          });
 
-        if (error) {
-          return [tab, { status: 'error', error: error.message, payload: undefined } satisfies LeaderboardPanelState] as const;
+          if (error) {
+            const fallbackable = /404|not found|get_room_leaderboard|could not find/i.test(error.message ?? '');
+            if (fallbackable) {
+              const payload = buildFallbackLeaderboardPayload(tab, currentUserId);
+              setLeaderboardRpcSupported(false);
+              return [tab, { status: 'ready', error: null, payload, updatedAt: payload.generatedAt } satisfies LeaderboardPanelState] as const;
+            }
+
+            return [tab, { status: 'error', error: error.message, payload: undefined } satisfies LeaderboardPanelState] as const;
+          }
+
+          const rows = ((data as LeaderboardRpcRow[] | null) ?? []).map((entry) => ({
+            rank: Number(entry.rank),
+            userId: entry.user_id,
+            username: entry.username,
+            avatarSkinId: entry.avatar_skin_id ?? undefined,
+            avatarAccessoryIds: entry.avatar_accessory_ids ?? undefined,
+            level: entry.level,
+            score: Number(entry.score),
+            medal: entry.rank === 1 ? ('gold' as const) : entry.rank === 2 ? ('silver' as const) : entry.rank === 3 ? ('bronze' as const) : undefined,
+            isCurrentUser: entry.user_id === currentUserId,
+          }));
+
+          const payload: LeaderboardPayload = {
+            tab,
+            generatedAt: new Date().toISOString(),
+            entries: rows,
+            currentUserEntry: rows.find((entry) => entry.userId === currentUserId) ?? null,
+          };
+
+          return [tab, { status: 'ready', error: null, payload, updatedAt: payload.generatedAt } satisfies LeaderboardPanelState] as const;
+        } catch (error) {
+          const message = error instanceof Error ? error.message : 'Leaderboard indisponible.';
+          if (/404|not found|get_room_leaderboard|failed to fetch/i.test(message)) {
+            const payload = buildFallbackLeaderboardPayload(tab, currentUserId);
+            setLeaderboardRpcSupported(false);
+            return [tab, { status: 'ready', error: null, payload, updatedAt: payload.generatedAt } satisfies LeaderboardPanelState] as const;
+          }
+
+          return [tab, { status: 'error', error: message, payload: undefined } satisfies LeaderboardPanelState] as const;
         }
-
-        const rows = ((data as LeaderboardRpcRow[] | null) ?? []).map((entry) => ({
-          rank: Number(entry.rank),
-          userId: entry.user_id,
-          username: entry.username,
-          avatarSkinId: entry.avatar_skin_id ?? undefined,
-          avatarAccessoryIds: entry.avatar_accessory_ids ?? undefined,
-          level: entry.level,
-          score: Number(entry.score),
-          medal: entry.rank === 1 ? ('gold' as const) : entry.rank === 2 ? ('silver' as const) : entry.rank === 3 ? ('bronze' as const) : undefined,
-          isCurrentUser: entry.user_id === currentUserId,
-        }));
-
-        const payload: LeaderboardPayload = {
-          tab,
-          generatedAt: new Date().toISOString(),
-          entries: rows,
-          currentUserEntry: rows.find((entry) => entry.userId === currentUserId) ?? null,
-        };
-
-        return [tab, { status: 'ready', error: null, payload, updatedAt: payload.generatedAt } satisfies LeaderboardPanelState] as const;
       }),
     );
 
