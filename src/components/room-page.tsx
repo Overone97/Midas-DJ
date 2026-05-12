@@ -6,10 +6,23 @@ import { AvatarDisplay } from '@/components/avatar-display';
 import { SyncScenePlayer } from '@/components/sync-scene-player';
 import type { AvatarConfig } from '@/lib/avatar';
 import type { LeaderboardPayload, LeaderboardTab } from '@/lib/leaderboard';
-import type { RoomPageState, RoomReactionSummary, RoomReactionType, RoomRole } from '@/lib/rooms';
+import type { PersonalPlaylistItemPreview, RoomPageState, RoomReactionSummary, RoomReactionType, RoomRole } from '@/lib/rooms';
 import { createXpSnapshot, xpRequiredForLevel, type XpActionKey } from '@/lib/xp';
 
 type QueueComposerProps = {
+  url: string;
+  title: string;
+  submitting: boolean;
+  feedback?: {
+    tone: 'neutral' | 'success' | 'error';
+    text: string;
+  } | null;
+  onUrlChange: (value: string) => void;
+  onTitleChange: (value: string) => void;
+  onSubmit: () => void;
+};
+
+type PlaylistComposerProps = {
   url: string;
   title: string;
   submitting: boolean;
@@ -27,6 +40,18 @@ type PlayerControlsProps = {
   onTogglePlayback: (nextState: 'playing' | 'paused', currentOffset: number) => void;
   onNextTrack: () => void;
   onStopPlayback: () => void;
+  onTrackEnded?: (finishedQueueItemId: string) => void;
+};
+
+type PlaylistControlsProps = {
+  items: PersonalPlaylistItemPreview[];
+  submitting?: boolean;
+  feedback?: {
+    tone: 'neutral' | 'success' | 'error';
+    text: string;
+  } | null;
+  onSendToQueue: (itemId: string) => void;
+  onRemove: (itemId: string) => void;
 };
 
 type ChatComposerProps = {
@@ -128,6 +153,8 @@ function formatXp(value?: number) {
 export function RoomPageView({
   state,
   queueComposer,
+  playlistComposer,
+  playlistControls,
   playerControls,
   chatComposer,
   avatarControls,
@@ -138,6 +165,8 @@ export function RoomPageView({
 }: {
   state: RoomPageState;
   queueComposer?: QueueComposerProps;
+  playlistComposer?: PlaylistComposerProps;
+  playlistControls?: PlaylistControlsProps;
   playerControls?: PlayerControlsProps;
   chatComposer?: ChatComposerProps;
   avatarControls?: AvatarControlsProps;
@@ -426,6 +455,7 @@ export function RoomPageView({
               onTogglePlayback={playerControls?.onTogglePlayback ?? (() => undefined)}
               onNextTrack={playerControls?.onNextTrack ?? (() => undefined)}
               onStopPlayback={playerControls?.onStopPlayback ?? (() => undefined)}
+              onTrackEnded={playerControls?.onTrackEnded}
             />
           ) : (
             <div className="rounded-[1.6rem] border border-dashed border-gold/20 bg-black/30 p-6 text-white/68">
@@ -737,6 +767,55 @@ export function RoomPageView({
                 {preview ? 'Preview statique : la room montre la queue, mais elle ne persiste rien.' : !state.currentUser.isLoggedIn ? 'Connecte-toi pour empiler de vrais titres.' : 'Le formulaire live n’est pas branché ici.'}
               </div>
             )}
+          </div>
+
+          <div className="premium-card rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(217,70,239,0.08),transparent_34%),linear-gradient(180deg,rgba(13,11,18,0.98),rgba(8,8,12,0.96))] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+            <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">My Playlist</p>
+            <h3 className="mt-3 text-2xl font-black text-white">Ta bibliothèque perso</h3>
+            <p className="mt-3 text-white/72">Persistante, liée à ton compte, et totalement séparée de la queue de la room.</p>
+
+            {playlistComposer ? (
+              <div className="mt-5 space-y-3">
+                <input type="text" value={playlistComposer.url} onChange={(event) => playlistComposer.onUrlChange(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="premium-button w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-fuchsia-300/40 focus:shadow-[0_0_0_1px_rgba(217,70,239,0.18),0_0_30px_rgba(217,70,239,0.08)]" />
+                <input type="text" value={playlistComposer.title} onChange={(event) => playlistComposer.onTitleChange(event.target.value)} placeholder="Titre custom optionnel" className="premium-button w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-fuchsia-300/40 focus:shadow-[0_0_0_1px_rgba(217,70,239,0.18),0_0_30px_rgba(217,70,239,0.08)]" />
+                {playlistComposer.feedback ? <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[playlistComposer.feedback.tone]}`}>{playlistComposer.feedback.text}</div> : null}
+                <button type="button" onClick={playlistComposer.onSubmit} disabled={playlistComposer.submitting} className="premium-button rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-5 py-3 font-semibold text-fuchsia-50 transition hover:bg-fuchsia-300/14 disabled:cursor-not-allowed disabled:opacity-60">
+                  {playlistComposer.submitting ? 'Ajout…' : 'Ajouter à My Playlist'}
+                </button>
+              </div>
+            ) : (
+              <div className="mt-5 rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/68">
+                Connecte-toi pour sauvegarder tes titres dans ta playlist perso.
+              </div>
+            )}
+
+            <div className="mt-5 space-y-3">
+              {playlistControls && playlistControls.items.length > 0 ? (
+                playlistControls.items.map((item) => (
+                  <div key={item.id} className="premium-card rounded-[1.35rem] border border-white/10 bg-black/25 p-3">
+                    <div className="flex gap-3">
+                      {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="Miniature playlist" className="h-14 w-24 rounded-xl border border-white/8 object-cover" /> : <div className="flex h-14 w-24 items-center justify-center rounded-xl border border-white/8 bg-white/5 text-xs text-white/40">no thumb</div>}
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/55">#{item.position}</span>
+                          <span className="rounded-full border border-fuchsia-300/15 bg-fuchsia-300/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-fuchsia-50">library</span>
+                          <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/48">{formatDuration(item.durationSeconds)}</span>
+                        </div>
+                        <p className="mt-2 truncate text-sm font-semibold text-white/90">{item.title}</p>
+                        <div className="mt-3 flex flex-wrap gap-2">
+                          <button type="button" onClick={() => playlistControls.onSendToQueue(item.id)} className="premium-button rounded-full border border-gold/20 bg-gold/10 px-3 py-2 text-xs font-semibold text-gold">Envoyer à la room</button>
+                          <button type="button" onClick={() => playlistControls.onRemove(item.id)} className="premium-button rounded-full border border-white/12 bg-white/5 px-3 py-2 text-xs font-semibold text-white/78">Supprimer</button>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))
+              ) : (
+                <div className="rounded-[1.5rem] border border-dashed border-white/10 bg-black/30 p-5 text-white/60">
+                  {state.currentUser.isLoggedIn ? 'Ta playlist est encore vide. Commence à te bâtir une réserve solide.' : 'La playlist perso arrive dès que tu es connecté.'}
+                </div>
+              )}
+            </div>
           </div>
         </div>
 

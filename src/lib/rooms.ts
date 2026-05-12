@@ -51,6 +51,16 @@ export type QueueItemPreview = {
 
 export type PlaybackMode = 'playing' | 'paused' | 'ended';
 
+export type PersonalPlaylistItemPreview = {
+  id: string;
+  youtubeVideoId: string;
+  title: string;
+  thumbnailUrl?: string | null;
+  durationSeconds?: number;
+  position: number;
+  createdAt?: string;
+};
+
 export type PlaybackPreview = {
   currentQueueItemId?: string | null;
   djUserId?: string | null;
@@ -108,6 +118,9 @@ export type RoomPageState = {
   members: RoomMemberPreview[];
   queue?: {
     items: QueueItemPreview[];
+  };
+  playlist?: {
+    items: PersonalPlaylistItemPreview[];
   };
   playback?: PlaybackPreview;
   chat?: {

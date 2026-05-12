@@ -1,13 +1,13 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { AvatarCustomizer } from '@/components/avatar-customizer';
 import { RoomPageView, type LeaderboardPanelState } from '@/components/room-page';
 import { DEFAULT_AVATAR, loadStoredAvatar, normalizeAvatar, saveStoredAvatar, type AvatarConfig } from '@/lib/avatar';
 import { createDefaultAvatarProgression, mapLegacyAvatarToLoadout, normalizeAvatarLoadout, normalizeAvatarProgression, projectLoadoutToAvatar, sanitizeLoadoutForProgression, type AvatarLoadout, type AvatarProgression } from '@/lib/avatar-catalog';
 import type { LeaderboardPayload, LeaderboardTab } from '@/lib/leaderboard';
 import { getSupabaseBrowserClient } from '@/lib/supabase/client';
-import type { ChatMessagePreview, PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomPageState, RoomReactionSummary, RoomReactionType, RoomRole } from '@/lib/rooms';
+import type { ChatMessagePreview, PersonalPlaylistItemPreview, PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomPageState, RoomReactionSummary, RoomReactionType, RoomRole } from '@/lib/rooms';
 import type { XpActionKey } from '@/lib/xp';
 import { extractYouTubeVideoId, getYouTubeThumbnailUrl } from '@/lib/youtube';
 
@@ -24,6 +24,11 @@ type QueueFeedback = {
 };
 
 type ChatFeedback = {
+  tone: 'neutral' | 'success' | 'error';
+  text: string;
+};
+
+type PlaylistFeedback = {
   tone: 'neutral' | 'success' | 'error';
   text: string;
 };
@@ -62,6 +67,16 @@ type QueueRow = {
   status: 'queued' | 'playing' | 'played' | 'skipped';
   added_by: string;
   profiles?: AvatarProfileRow | AvatarProfileRow[] | null;
+};
+
+type PlaylistRow = {
+  id: string;
+  youtube_video_id: string;
+  title: string;
+  thumbnail_url: string | null;
+  duration_seconds: number;
+  position: number;
+  created_at: string;
 };
 
 type MembershipRow = {
@@ -193,6 +208,18 @@ function mapQueueRows(rows: QueueRow[]): QueueItemPreview[] {
   }));
 }
 
+function mapPlaylistRows(rows: PlaylistRow[]): PersonalPlaylistItemPreview[] {
+  return rows.map((item, index) => ({
+    id: item.id,
+    youtubeVideoId: item.youtube_video_id,
+    title: item.title,
+    thumbnailUrl: item.thumbnail_url,
+    durationSeconds: item.duration_seconds,
+    position: item.position ?? index + 1,
+    createdAt: item.created_at,
+  }));
+}
+
 function mapMemberRows(rows: MemberRow[]) {
   return rows.reduce<RoomMemberPreview[]>((acc, entry, index) => {
     const profile = Array.isArray(entry.profiles) ? entry.profiles[0] : entry.profiles;
@@ -272,11 +299,16 @@ function getCurrentOffset(playback?: PlaybackPreview) {
 
 export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) {
   const [state, setState] = useState<RoomPageState>(initialState);
+  const endedTrackReportRef = useRef<string | null>(null);
   const [presenceConnected, setPresenceConnected] = useState(false);
   const [queueUrl, setQueueUrl] = useState('');
   const [queueTitle, setQueueTitle] = useState('');
   const [queueSubmitting, setQueueSubmitting] = useState(false);
   const [queueFeedback, setQueueFeedback] = useState<QueueFeedback | null>(null);
+  const [playlistUrl, setPlaylistUrl] = useState('');
+  const [playlistTitle, setPlaylistTitle] = useState('');
+  const [playlistSubmitting, setPlaylistSubmitting] = useState(false);
+  const [playlistFeedback, setPlaylistFeedback] = useState<PlaylistFeedback | null>(null);
   const [chatMessage, setChatMessage] = useState('');
   const [chatSubmitting, setChatSubmitting] = useState(false);
   const [chatFeedback, setChatFeedback] = useState<ChatFeedback | null>(null);
@@ -483,7 +515,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         }
       }
 
-      const [{ data: viewerProfile }, { data: ownerProfile }, { data: membersData }, { data: queueItemsData }, { data: playbackData }, { data: messagesData }, { data: votesData }] = await Promise.all([
+      const [{ data: viewerProfile }, { data: ownerProfile }, { data: membersData }, { data: queueItemsData }, { data: playbackData }, { data: messagesData }, { data: votesData }, { data: playlistItemsData }] = await Promise.all([
         user
           ? supabase
               .from('profiles')
@@ -517,6 +549,14 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           .order('created_at', { ascending: false })
           .limit(30),
         supabase.from('votes').select('id, queue_item_id, user_id, type').eq('room_id', room.id),
+        user
+          ? supabase
+              .from('user_playlist_items')
+              .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, created_at')
+              .eq('user_id', user.id)
+              .order('position', { ascending: true })
+              .limit(100)
+          : Promise.resolve({ data: [], error: null }),
       ]);
 
       if (cancelled) {
@@ -557,6 +597,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         },
         members: mapMemberRows((membersData as MemberRow[]) ?? []),
         queue: { items: queueItems },
+        playlist: { items: mapPlaylistRows((playlistItemsData as PlaylistRow[]) ?? []) },
         playback,
         chat: { messages: mapMessageRows((messagesData as MessageRow[]) ?? []).reverse() },
         reactions: summarizeReactions((votesData as VoteRow[]) ?? [], currentQueueItemId, user?.id),
@@ -668,34 +709,45 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         .limit(20);
     }
 
-    async function refreshQueue() {
-      const { data, error } = await fetchQueueRows();
-
-      if (error) {
-        setQueueFeedback((current) => current ?? { tone: 'error', text: error.message });
-        return;
-      }
-
-      const items = mapQueueRows((data as QueueRow[]) ?? []);
-      setState((current) => ({
-        ...current,
-        room: { ...current.room, queueDepth: items.length },
-        queue: { items },
-        reactions: current.reactions
-          ? {
-              ...current.reactions,
-              currentQueueItemId: current.playback?.currentQueueItemId ?? items.find((item) => item.status === 'playing')?.id ?? items[0]?.id ?? null,
-            }
-          : current.reactions,
-      }));
-    }
-
-    async function refreshPlayback() {
-      const { data, error } = await supabase
+    async function fetchPlaybackRow() {
+      return supabase
         .from('playback_state')
         .select('current_queue_item_id, dj_user_id, state, started_at, offset_seconds, updated_at')
         .eq('room_id', roomId)
         .maybeSingle();
+    }
+
+    async function refreshQueuePlaybackAndReactions() {
+      const [{ data: queueData, error: queueError }, { data: playbackData, error: playbackError }, { data: votesData, error: votesError }] = await Promise.all([
+        fetchQueueRows(),
+        fetchPlaybackRow(),
+        supabase.from('votes').select('id, queue_item_id, user_id, type').eq('room_id', roomId),
+      ]);
+
+      if (queueError) {
+        setQueueFeedback((current) => current ?? { tone: 'error', text: queueError.message });
+        return;
+      }
+
+      if (playbackError) {
+        return;
+      }
+
+      const items = mapQueueRows((queueData as QueueRow[]) ?? []);
+      const playback = mapPlaybackRow(playbackData as PlaybackRow | null);
+      const currentQueueItemId = playback?.currentQueueItemId ?? items.find((item) => item.status === 'playing')?.id ?? items[0]?.id ?? null;
+
+      setState((current) => ({
+        ...current,
+        room: { ...current.room, queueDepth: items.length },
+        queue: { items },
+        playback,
+        reactions: summarizeReactions((votesData as VoteRow[]) ?? [], currentQueueItemId, current.currentUser.id),
+      }));
+    }
+
+    async function refreshPlayback() {
+      const { data, error } = await fetchPlaybackRow();
 
       if (error) {
         return;
@@ -730,6 +782,29 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           current.playback?.currentQueueItemId ?? current.queue?.items.find((item) => item.status === 'playing')?.id ?? current.queue?.items[0]?.id,
           current.currentUser.id,
         ),
+      }));
+    }
+
+    async function refreshPlaylist() {
+      if (!state.currentUser.id) {
+        return;
+      }
+
+      const { data, error } = await supabase
+        .from('user_playlist_items')
+        .select('id, youtube_video_id, title, thumbnail_url, duration_seconds, position, created_at')
+        .eq('user_id', state.currentUser.id)
+        .order('position', { ascending: true })
+        .limit(100);
+
+      if (error) {
+        setPlaylistFeedback((current) => current ?? { tone: 'error', text: error.message });
+        return;
+      }
+
+      setState((current) => ({
+        ...current,
+        playlist: { items: mapPlaylistRows((data as PlaylistRow[]) ?? []) },
       }));
     }
 
@@ -793,23 +868,26 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
     const queueChannel = supabase
       .channel(`room-queue:${roomId}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_items', filter: `room_id=eq.${roomId}` }, (payload: { eventType: 'INSERT' | 'UPDATE' | 'DELETE'; old: Record<string, unknown> }) => {
-        if (payload.eventType === 'DELETE') {
-          setState((current) => ({
-            ...current,
-            queue: { items: (current.queue?.items ?? []).filter((item) => item.id !== String(payload.old.id)) },
-          }));
-        }
-        void refreshQueue();
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'queue_items', filter: `room_id=eq.${roomId}` }, () => {
+        void refreshQueuePlaybackAndReactions();
       })
       .subscribe();
 
     const playbackChannel = supabase
       .channel(`room-playback:${roomId}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'playback_state', filter: `room_id=eq.${roomId}` }, () => {
-        void refreshPlayback();
+        void refreshQueuePlaybackAndReactions();
       })
       .subscribe();
+
+    const playlistChannel = state.currentUser.id
+      ? supabase
+          .channel(`user-playlist:${state.currentUser.id}`)
+          .on('postgres_changes', { event: '*', schema: 'public', table: 'user_playlist_items', filter: `user_id=eq.${state.currentUser.id}` }, () => {
+            void refreshPlaylist();
+          })
+          .subscribe()
+      : null;
 
     const messagesChannel = supabase
       .channel(`room-messages:${roomId}`)
@@ -929,10 +1007,9 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           .subscribe()
       : null;
 
-    void refreshQueue();
-    void refreshPlayback();
+    void refreshQueuePlaybackAndReactions();
     void refreshMessages();
-    void refreshReactions();
+    void refreshPlaylist();
     void refreshViewerProgression();
     void refreshLeaderboards(roomId, state.currentUser.id);
 
@@ -956,6 +1033,9 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       void supabase.removeChannel(messagesChannel);
       void supabase.removeChannel(membersChannel);
       void supabase.removeChannel(votesChannel);
+      if (playlistChannel) {
+        void supabase.removeChannel(playlistChannel);
+      }
       if (xpEventsChannel) {
         void supabase.removeChannel(xpEventsChannel);
       }
@@ -974,7 +1054,11 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     setAvatarLoadoutDraft(normalizeAvatarLoadout(state.currentUser.avatarLoadout));
   }, [state.currentUser.avatarLoadout]);
 
-  async function ensurePlaybackStateForFirstTrack(newQueueItemId: string) {
+  useEffect(() => {
+    endedTrackReportRef.current = null;
+  }, [state.playback?.currentQueueItemId]);
+
+  async function activatePlaybackForTrack(newQueueItemId: string) {
     const supabase = getSupabaseBrowserClient();
     if (!supabase || !state.room.id || !state.room.ownerId) {
       return;
@@ -987,6 +1071,16 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       .maybeSingle();
 
     if (existing) {
+      await supabase
+        .from('playback_state')
+        .update({
+          current_queue_item_id: newQueueItemId,
+          dj_user_id: state.room.ownerId,
+          state: 'playing',
+          started_at: new Date().toISOString(),
+          offset_seconds: 0,
+        })
+        .eq('room_id', state.room.id);
       return;
     }
 
@@ -998,6 +1092,74 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       started_at: new Date().toISOString(),
       offset_seconds: 0,
     });
+  }
+
+  async function insertTrackIntoRoomQueue(input: {
+    youtubeVideoId: string;
+    title: string;
+    thumbnailUrl?: string | null;
+    durationSeconds?: number;
+  }) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase || !state.room.id || !state.currentUser.isLoggedIn) {
+      throw new Error('Session room indisponible.');
+    }
+
+    const { data: authData } = await supabase.auth.getUser();
+    const user = authData.user;
+    if (!user) {
+      throw new Error('Session expirée. Recharge ou reconnecte-toi.');
+    }
+
+    let inserted: { id: string } | null = null;
+
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      const { data: latestItems, error: latestItemsError } = await supabase
+        .from('queue_items')
+        .select('position')
+        .eq('room_id', state.room.id)
+        .in('status', ['queued', 'playing'])
+        .order('position', { ascending: false })
+        .limit(1);
+
+      if (latestItemsError) {
+        throw latestItemsError;
+      }
+
+      const nextPosition = ((latestItems?.[0]?.position as number | undefined) ?? 0) + 1;
+
+      const { data, error } = await supabase
+        .from('queue_items')
+        .insert({
+          room_id: state.room.id,
+          added_by: user.id,
+          dj_user_id: state.room.ownerId ?? user.id,
+          youtube_video_id: input.youtubeVideoId,
+          title: input.title,
+          thumbnail_url: input.thumbnailUrl ?? getYouTubeThumbnailUrl(input.youtubeVideoId),
+          duration_seconds: input.durationSeconds ?? 0,
+          position: nextPosition,
+          status: 'queued',
+        })
+        .select('id')
+        .single();
+
+      if (!error) {
+        inserted = data;
+        break;
+      }
+
+      if (error.code !== '23505' || attempt === 2) {
+        throw error;
+      }
+    }
+
+    if (!state.playback?.currentQueueItemId && inserted?.id) {
+      await supabase.from('queue_items').update({ status: 'playing' }).eq('id', inserted.id);
+      await activatePlaybackForTrack(inserted.id);
+    }
+
+    return inserted;
   }
 
   async function handleQueueSubmit() {
@@ -1027,50 +1189,14 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     setQueueFeedback({ tone: 'neutral', text: 'Ajout du titre dans la queue…' });
 
     try {
-      const { data: authData } = await supabase.auth.getUser();
-      const user = authData.user;
-      if (!user) {
-        throw new Error('Session expirée. Recharge ou reconnecte-toi.');
-      }
-
-      const { data: latestItems, error: latestItemsError } = await supabase
-        .from('queue_items')
-        .select('position')
-        .eq('room_id', state.room.id)
-        .order('position', { ascending: false })
-        .limit(1);
-
-      if (latestItemsError) {
-        throw latestItemsError;
-      }
-
-      const nextPosition = ((latestItems?.[0]?.position as number | undefined) ?? 0) + 1;
       const computedTitle = queueTitle.trim() || `YouTube track · ${videoId}`;
 
-      const { data: inserted, error } = await supabase
-        .from('queue_items')
-        .insert({
-          room_id: state.room.id,
-          added_by: user.id,
-          dj_user_id: state.room.ownerId ?? user.id,
-          youtube_video_id: videoId,
-          title: computedTitle,
-          thumbnail_url: getYouTubeThumbnailUrl(videoId),
-          duration_seconds: 0,
-          position: nextPosition,
-          status: 'queued',
-        })
-        .select('id')
-        .single();
-
-      if (error) {
-        throw error;
-      }
-
-      if (!state.playback && inserted?.id) {
-        await supabase.from('queue_items').update({ status: 'playing' }).eq('id', inserted.id);
-        await ensurePlaybackStateForFirstTrack(inserted.id);
-      }
+      await insertTrackIntoRoomQueue({
+        youtubeVideoId: videoId,
+        title: computedTitle,
+        thumbnailUrl: getYouTubeThumbnailUrl(videoId),
+        durationSeconds: 0,
+      });
 
       setQueueUrl('');
       setQueueTitle('');
@@ -1080,6 +1206,114 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       setQueueFeedback({ tone: 'error', text: message });
     } finally {
       setQueueSubmitting(false);
+    }
+  }
+
+  async function handlePlaylistSubmit() {
+    if (!state.currentUser.isLoggedIn || !state.currentUser.id) {
+      setPlaylistFeedback({ tone: 'error', text: 'Connecte-toi avant de construire ta playlist.' });
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase) {
+      setPlaylistFeedback({ tone: 'error', text: 'Client Supabase indisponible.' });
+      return;
+    }
+
+    const videoId = extractYouTubeVideoId(playlistUrl);
+    if (!videoId) {
+      setPlaylistFeedback({ tone: 'error', text: 'Lien YouTube invalide pour la playlist.' });
+      return;
+    }
+
+    setPlaylistSubmitting(true);
+    setPlaylistFeedback({ tone: 'neutral', text: 'Ajout dans ta playlist…' });
+
+    try {
+      const computedTitle = playlistTitle.trim() || `YouTube track · ${videoId}`;
+
+      let inserted = false;
+      for (let attempt = 0; attempt < 3; attempt += 1) {
+        const { data: latestItems, error: latestItemsError } = await supabase
+          .from('user_playlist_items')
+          .select('position')
+          .eq('user_id', state.currentUser.id)
+          .order('position', { ascending: false })
+          .limit(1);
+
+        if (latestItemsError) {
+          throw latestItemsError;
+        }
+
+        const nextPosition = ((latestItems?.[0]?.position as number | undefined) ?? 0) + 1;
+
+        const { error } = await supabase.from('user_playlist_items').insert({
+          user_id: state.currentUser.id,
+          youtube_video_id: videoId,
+          title: computedTitle,
+          thumbnail_url: getYouTubeThumbnailUrl(videoId),
+          duration_seconds: 0,
+          position: nextPosition,
+        });
+
+        if (!error) {
+          inserted = true;
+          break;
+        }
+
+        if (error.code !== '23505' || attempt === 2) {
+          throw error;
+        }
+      }
+
+      if (!inserted) {
+        throw new Error('Impossible d’ordonner correctement ta playlist.');
+      }
+
+      setPlaylistUrl('');
+      setPlaylistTitle('');
+      setPlaylistFeedback({ tone: 'success', text: 'Titre rangé dans ta playlist perso.' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Impossible d’ajouter ce titre à ta playlist.';
+      setPlaylistFeedback({ tone: 'error', text: message });
+    } finally {
+      setPlaylistSubmitting(false);
+    }
+  }
+
+  async function handlePlaylistRemove(itemId: string) {
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase || !state.currentUser.id) {
+      return;
+    }
+
+    const { error } = await supabase.from('user_playlist_items').delete().eq('id', itemId).eq('user_id', state.currentUser.id);
+    if (error) {
+      setPlaylistFeedback({ tone: 'error', text: error.message ?? 'Suppression playlist impossible.' });
+    }
+  }
+
+  async function handleSendPlaylistTrackToQueue(itemId: string) {
+    const playlistItem = state.playlist?.items.find((entry) => entry.id === itemId);
+    if (!playlistItem) {
+      setPlaylistFeedback({ tone: 'error', text: 'Titre playlist introuvable.' });
+      return;
+    }
+
+    setPlaylistFeedback({ tone: 'neutral', text: 'Envoi du titre vers la room…' });
+
+    try {
+      await insertTrackIntoRoomQueue({
+        youtubeVideoId: playlistItem.youtubeVideoId,
+        title: playlistItem.title,
+        thumbnailUrl: playlistItem.thumbnailUrl,
+        durationSeconds: playlistItem.durationSeconds,
+      });
+      setPlaylistFeedback({ tone: 'success', text: 'Titre envoyé dans la queue sans toucher à ta playlist.' });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Impossible d’envoyer ce titre dans la room.';
+      setPlaylistFeedback({ tone: 'error', text: message });
     }
   }
 
@@ -1234,7 +1468,6 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     const supabase = getSupabaseBrowserClient();
     const roomId = state.room.id;
     const currentPlayback = state.playback;
-    const queueItems = state.queue?.items ?? [];
     if (!supabase || !roomId || !currentPlayback) {
       return;
     }
@@ -1242,11 +1475,36 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     const { error } = await supabase.rpc('advance_queue_and_award_xp', {
       room_id_value: roomId,
       completion_reason: completionReason,
+      expected_queue_item_id: currentPlayback.currentQueueItemId ?? null,
     });
 
     if (error) {
       setChatFeedback({ tone: 'error', text: error.message ?? 'Impossible d’avancer au titre suivant.' });
       return;
+    }
+  }
+
+  async function handleTrackEnded(finishedQueueItemId: string) {
+    if (!finishedQueueItemId || endedTrackReportRef.current === finishedQueueItemId) {
+      return;
+    }
+
+    const supabase = getSupabaseBrowserClient();
+    if (!supabase || !state.room.id || !state.currentUser.isLoggedIn) {
+      return;
+    }
+
+    endedTrackReportRef.current = finishedQueueItemId;
+
+    const { error } = await supabase.rpc('advance_queue_and_award_xp', {
+      room_id_value: state.room.id,
+      completion_reason: 'completed',
+      expected_queue_item_id: finishedQueueItemId,
+    });
+
+    if (error) {
+      endedTrackReportRef.current = null;
+      setChatFeedback({ tone: 'error', text: error.message ?? 'Fin de morceau détectée, mais la queue n’a pas pu avancer.' });
     }
   }
 
@@ -1353,6 +1611,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           onTogglePlayback: (nextState, currentOffset) => void handleTogglePlayback(nextState, currentOffset),
           onNextTrack: (reason?: 'completed' | 'skipped') => void handleNextTrack(reason ?? 'skipped'),
           onStopPlayback: () => void handleStopPlayback(),
+          onTrackEnded: (finishedQueueItemId) => void handleTrackEnded(finishedQueueItemId),
         }}
         queueComposer={
           canComposeQueue
@@ -1364,6 +1623,30 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
                 onUrlChange: setQueueUrl,
                 onTitleChange: setQueueTitle,
                 onSubmit: () => void handleQueueSubmit(),
+              }
+            : undefined
+        }
+        playlistComposer={
+          hydratedState.currentUser.isLoggedIn
+            ? {
+                url: playlistUrl,
+                title: playlistTitle,
+                submitting: playlistSubmitting,
+                feedback: playlistFeedback,
+                onUrlChange: setPlaylistUrl,
+                onTitleChange: setPlaylistTitle,
+                onSubmit: () => void handlePlaylistSubmit(),
+              }
+            : undefined
+        }
+        playlistControls={
+          hydratedState.currentUser.isLoggedIn
+            ? {
+                items: hydratedState.playlist?.items ?? [],
+                submitting: playlistSubmitting,
+                feedback: playlistFeedback,
+                onSendToQueue: (itemId) => void handleSendPlaylistTrackToQueue(itemId),
+                onRemove: (itemId) => void handlePlaylistRemove(itemId),
               }
             : undefined
         }

@@ -132,6 +132,18 @@ create table if not exists public.messages (
   deleted_at timestamptz
 );
 
+create table if not exists public.user_playlist_items (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles (id) on delete cascade,
+  youtube_video_id text not null,
+  title text not null,
+  thumbnail_url text,
+  duration_seconds integer not null default 0,
+  position integer not null,
+  created_at timestamptz not null default timezone('utc', now()),
+  unique (user_id, position)
+);
+
 create table if not exists public.moderation_events (
   id uuid primary key default gen_random_uuid(),
   room_id uuid not null references public.rooms (id) on delete cascade,
@@ -148,6 +160,7 @@ create index if not exists dj_queue_room_id_idx on public.dj_queue (room_id, act
 create index if not exists queue_items_room_id_idx on public.queue_items (room_id, status, position);
 create index if not exists votes_room_item_idx on public.votes (room_id, queue_item_id);
 create index if not exists messages_room_id_idx on public.messages (room_id, created_at desc);
+create index if not exists user_playlist_items_user_id_idx on public.user_playlist_items (user_id, position);
 create index if not exists moderation_events_room_id_idx on public.moderation_events (room_id, created_at desc);
 
 alter table public.profiles enable row level security;
@@ -158,6 +171,7 @@ alter table public.queue_items enable row level security;
 alter table public.playback_state enable row level security;
 alter table public.votes enable row level security;
 alter table public.messages enable row level security;
+alter table public.user_playlist_items enable row level security;
 alter table public.moderation_events enable row level security;
 
 drop trigger if exists profiles_set_timestamp on public.profiles;
@@ -365,6 +379,35 @@ for select
 to authenticated
 using (true);
 
+drop policy if exists "users can read their playlist items" on public.user_playlist_items;
+create policy "users can read their playlist items"
+on public.user_playlist_items
+for select
+to authenticated
+using (auth.uid() = user_id);
+
+drop policy if exists "users can insert their playlist items" on public.user_playlist_items;
+create policy "users can insert their playlist items"
+on public.user_playlist_items
+for insert
+to authenticated
+with check (auth.uid() = user_id);
+
+drop policy if exists "users can update their playlist items" on public.user_playlist_items;
+create policy "users can update their playlist items"
+on public.user_playlist_items
+for update
+to authenticated
+using (auth.uid() = user_id)
+with check (auth.uid() = user_id);
+
+drop policy if exists "users can delete their playlist items" on public.user_playlist_items;
+create policy "users can delete their playlist items"
+on public.user_playlist_items
+for delete
+to authenticated
+using (auth.uid() = user_id);
+
 drop policy if exists "members can send messages" on public.messages;
 create policy "members can send messages"
 on public.messages
@@ -430,5 +473,12 @@ begin
     where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'votes'
   ) then
     execute 'alter publication supabase_realtime add table public.votes';
+  end if;
+
+  if not exists (
+    select 1 from pg_publication_tables
+    where pubname = 'supabase_realtime' and schemaname = 'public' and tablename = 'user_playlist_items'
+  ) then
+    execute 'alter publication supabase_realtime add table public.user_playlist_items';
   end if;
 end $$;

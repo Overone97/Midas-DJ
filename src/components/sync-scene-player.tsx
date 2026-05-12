@@ -30,6 +30,7 @@ type ScenePlayerProps = {
   onTogglePlayback: (nextState: 'playing' | 'paused', currentOffset: number) => void;
   onNextTrack: () => void;
   onStopPlayback: () => void;
+  onTrackEnded?: (finishedQueueItemId: string) => void;
 };
 
 type ReactionBurst = {
@@ -100,7 +101,7 @@ function ensureYouTubeApi() {
   });
 }
 
-export function SyncScenePlayer({ track, playback, reactions, canControl, members, ownerLabel, layoutMode = 'default', onTogglePlayback, onNextTrack, onStopPlayback }: ScenePlayerProps) {
+export function SyncScenePlayer({ track, playback, reactions, canControl, members, ownerLabel, layoutMode = 'default', onTogglePlayback, onNextTrack, onStopPlayback, onTrackEnded }: ScenePlayerProps) {
   const playerHostRef = useRef<HTMLDivElement | null>(null);
   const adapterRef = useRef<YouTubeAudioAdapter | null>(null);
   const engineRef = useRef(new AudioEngine());
@@ -290,13 +291,13 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
   }, [currentTrack?.id]);
 
   useEffect(() => {
-    if (engineState.playbackState === 'ended' && canControl && currentTrack) {
+    if (engineState.playbackState === 'ended' && currentTrack) {
       if (autoAdvanceTrackRef.current !== currentTrack.id) {
         autoAdvanceTrackRef.current = currentTrack.id;
-        onNextTrack();
+        onTrackEnded?.(currentTrack.id);
       }
     }
-  }, [canControl, currentTrack, engineState.playbackState, onNextTrack]);
+  }, [currentTrack, engineState.playbackState, onTrackEnded]);
 
   useEffect(() => {
     if (!playback) {
