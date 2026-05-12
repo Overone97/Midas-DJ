@@ -108,6 +108,7 @@ export type RoomPageState = {
   currentUser: {
     id?: string;
     isLoggedIn: boolean;
+    isOmegaAdmin?: boolean;
     role: RoomRole;
     email?: string | null;
     label?: string;

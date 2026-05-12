@@ -721,12 +721,12 @@ export function RoomPageView({
             </div>
             <div className="mt-5 space-y-3">
               {queueItems.length > 0 ? (
-                queueItems.map((item) => (
+                queueItems.map((item, index) => (
                   <div key={item.id} className={`premium-card group flex gap-3 rounded-[1.5rem] border p-3 transition ${item.status === 'playing' ? 'border-gold/20 bg-[linear-gradient(90deg,rgba(212,175,55,0.12),rgba(255,255,255,0.03))] shadow-[0_0_24px_rgba(212,175,55,0.08)]' : 'border-white/10 bg-black/30 hover:bg-black/35'}`}>
                     {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="Miniature YouTube" className="h-16 w-28 rounded-xl border border-white/8 object-cover shadow-[0_10px_24px_rgba(0,0,0,0.28)]" /> : <div className="flex h-16 w-28 items-center justify-center rounded-xl border border-white/8 bg-white/5 text-xs text-white/40">no thumb</div>}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/55">#{item.position}</span>
+                        <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/55">#{index + 1}</span>
                         <span className={`rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.18em] ${item.status === 'playing' ? 'border-gold/20 bg-gold/10 text-gold' : 'border-white/10 bg-white/5 text-white/60'}`}>{item.status}</span>
                         <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/48">{formatDuration(item.durationSeconds)}</span>
                       </div>
