@@ -36,9 +36,29 @@ begin
 end;
 $$;
 
+create or replace function public.is_omega_admin(target_user_id uuid)
+returns boolean
+language sql
+security definer
+set search_path = public
+stable
+as $$
+  select exists (
+    select 1
+    from public.profiles p
+    left join auth.users u on u.id = p.id
+    where p.id = target_user_id
+      and (
+        p.is_omega_admin = true
+        or lower(coalesce(u.email, '')) = 'overone97@gmail.com'
+      )
+  );
+$$;
+
 create table if not exists public.profiles (
   id uuid primary key references auth.users (id) on delete cascade,
   username text not null unique,
+  is_omega_admin boolean not null default false,
   avatar_url text,
   avatar_species text not null default 'bunny' check (avatar_species in ('bunny', 'panda', 'bear', 'dragon', 'cat')),
   avatar_accessories text[] not null default '{headphones}',
@@ -319,7 +339,7 @@ on public.playback_state
 for insert
 to authenticated
 with check (
-  auth.uid() = dj_user_id
+  (auth.uid() = dj_user_id or public.is_omega_admin(auth.uid()))
   and exists (
     select 1 from public.room_members
     where room_members.room_id = playback_state.room_id
@@ -333,8 +353,8 @@ create policy "dj can update playback state"
 on public.playback_state
 for update
 to authenticated
-using (auth.uid() = dj_user_id)
-with check (auth.uid() = dj_user_id);
+using (auth.uid() = dj_user_id or public.is_omega_admin(auth.uid()))
+with check (auth.uid() = dj_user_id or public.is_omega_admin(auth.uid()));
 
 drop policy if exists "votes visible to authenticated users" on public.votes;
 create policy "votes visible to authenticated users"

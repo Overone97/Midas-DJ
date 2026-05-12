@@ -45,6 +45,7 @@ type RoomRow = {
 type AvatarProfileRow = {
   id?: string;
   username?: string | null;
+  is_omega_admin?: boolean | null;
   avatar_species?: string | null;
   avatar_accessories?: string[] | null;
   avatar_outfit_color?: string | null;
@@ -56,6 +57,12 @@ type AvatarProfileRow = {
   avatar_xp?: number | null;
   avatar_level?: number | null;
 };
+
+const OMEGA_ADMIN_EMAIL = 'overone97@gmail.com';
+
+function isOmegaAdminEmail(email?: string | null) {
+  return (email ?? '').trim().toLowerCase() === OMEGA_ADMIN_EMAIL;
+}
 
 type QueueRow = {
   id: string;
@@ -480,7 +487,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         setState((current) => ({
           ...current,
           status: 'missing',
-          currentUser: { id: user?.id, isLoggedIn: Boolean(user), role: 'visitor', email: user?.email },
+          currentUser: { id: user?.id, isLoggedIn: Boolean(user), isOmegaAdmin: isOmegaAdminEmail(user?.email), role: 'visitor', email: user?.email },
           room: {
             ...current.room,
             name: 'Room introuvable',
@@ -496,21 +503,22 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       }
 
       let membershipData: MembershipRow | null = null;
+      const omegaAdmin = isOmegaAdminEmail(user?.email);
 
       if (user) {
         const { data: membership } = await supabase.from('room_members').select('role').eq('room_id', room.id).eq('user_id', user.id).maybeSingle();
 
         membershipData = (membership as MembershipRow | null) ?? null;
 
-        if (!membershipData && room.type === 'public' && user.id !== room.owner_id) {
+        if (!membershipData && user.id !== room.owner_id && (room.type === 'public' || omegaAdmin)) {
           const { error: joinError } = await supabase.from('room_members').upsert({
             room_id: room.id,
             user_id: user.id,
-            role: 'member',
+            role: omegaAdmin ? 'mod' : 'member',
           });
 
           if (!joinError) {
-            membershipData = { role: 'member' };
+            membershipData = { role: omegaAdmin ? 'mod' : 'member' };
           }
         }
       }
@@ -519,11 +527,11 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         user
           ? supabase
               .from('profiles')
-              .select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level')
+              .select('id, username, is_omega_admin, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level')
               .eq('id', user.id)
               .maybeSingle()
           : Promise.resolve({ data: null, error: null }),
-        supabase.from('profiles').select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level').eq('id', room.owner_id).maybeSingle(),
+        supabase.from('profiles').select('id, username, is_omega_admin, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level').eq('id', room.owner_id).maybeSingle(),
         supabase
           .from('room_members')
           .select('role, profiles!room_members_user_id_fkey(id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level)')
@@ -563,8 +571,8 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         return;
       }
 
-      const role = user ? (membershipData?.role ?? (user.id === room.owner_id ? 'owner' : 'visitor')) : 'visitor';
-      const denied = room.type === 'private' && role === 'visitor';
+      const role = user ? (omegaAdmin ? 'owner' : (membershipData?.role ?? (user.id === room.owner_id ? 'owner' : 'visitor'))) : 'visitor';
+      const denied = room.type === 'private' && role === 'visitor' && !omegaAdmin;
       const queueItems = mapQueueRows((queueItemsData as QueueRow[]) ?? []);
       const playback = mapPlaybackRow(playbackData as PlaybackRow | null);
       const currentQueueItemId = playback?.currentQueueItemId ?? queueItems.find((item) => item.status === 'playing')?.id ?? queueItems[0]?.id;
@@ -588,6 +596,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         currentUser: {
           id: user?.id,
           isLoggedIn: Boolean(user),
+          isOmegaAdmin: omegaAdmin || Boolean((viewerProfile as AvatarProfileRow | null)?.is_omega_admin),
           role,
           email: user?.email,
           label: labelFromProfile(viewerProfile as AvatarProfileRow | null, user?.email?.split('@')[0] ?? 'Guest listener'),
@@ -815,7 +824,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
 
       const { data } = await supabase
         .from('profiles')
-        .select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level')
+        .select('id, username, is_omega_admin, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level')
         .eq('id', state.currentUser.id)
         .maybeSingle();
 
@@ -896,7 +905,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
           const inserted = payload.new as { id: string; content: string; created_at: string; user_id: string };
           const { data: profileData } = await supabase
             .from('profiles')
-            .select('id, username, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level')
+            .select('id, username, is_omega_admin, avatar_species, avatar_accessories, avatar_outfit_color, avatar_badge, selected_skin_id, equipped_accessory_ids, unlocked_skin_ids, unlocked_accessory_ids, avatar_xp, avatar_level')
             .eq('id', inserted.user_id)
             .maybeSingle();
 
@@ -1468,14 +1477,15 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
     const supabase = getSupabaseBrowserClient();
     const roomId = state.room.id;
     const currentPlayback = state.playback;
-    if (!supabase || !roomId || !currentPlayback) {
+    const activeQueueItemId = currentPlayback?.currentQueueItemId ?? state.queue?.items.find((item) => item.status === 'playing')?.id ?? state.queue?.items[0]?.id ?? null;
+    if (!supabase || !roomId || !activeQueueItemId) {
       return;
     }
 
     const { error } = await supabase.rpc('advance_queue_and_award_xp', {
       room_id_value: roomId,
       completion_reason: completionReason,
-      expected_queue_item_id: currentPlayback.currentQueueItemId ?? null,
+      expected_queue_item_id: activeQueueItemId,
     });
 
     if (error) {
@@ -1600,7 +1610,7 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
   );
 
   const canComposeQueue = hydratedState.status === 'live' && hydratedState.currentUser.isLoggedIn;
-  const canControlPlayback = hydratedState.status === 'live' && hydratedState.currentUser.role === 'owner';
+  const canControlPlayback = hydratedState.status === 'live' && (hydratedState.currentUser.role === 'owner' || hydratedState.currentUser.isOmegaAdmin === true);
 
   return (
     <>
