@@ -434,7 +434,7 @@ export function RoomPageView({
           )}
         </div>
 
-        <div className={`rounded-[1.8rem] border border-cyan-300/10 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.08),transparent_28%),linear-gradient(180deg,rgba(8,14,20,0.97),rgba(8,10,16,0.96))] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.28)] xl:sticky xl:top-4 ${isWideLayout ? '2xl:p-5' : ''}`}>
+        <div className={`premium-card premium-card-soft rounded-[1.8rem] border border-cyan-300/10 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.08),transparent_28%),linear-gradient(180deg,rgba(8,14,20,0.97),rgba(8,10,16,0.96))] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.28)] xl:sticky xl:top-4 ${isWideLayout ? '2xl:p-5' : ''}`}>
           <div className="rounded-[1.35rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-3">
             <div className="flex items-center justify-between gap-3">
               <div>
@@ -442,21 +442,21 @@ export function RoomPageView({
                 <h3 className="mt-1 text-lg font-black text-white">Le dancefloor parle</h3>
               </div>
               <div className="flex rounded-full border border-white/10 bg-black/25 p-1 text-xs font-semibold text-white/70">
-                <button type="button" onClick={() => setRightPanelTab('chat')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'chat' ? 'bg-cyan-300/16 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)]' : 'hover:bg-white/6'}`}>Chat{unreadCount > 0 ? <span className="ml-2 rounded-full bg-fuchsia-400/80 px-1.5 py-0.5 text-[10px] font-black text-white">{unreadCount}</span> : null}</button>
-                <button type="button" onClick={() => setRightPanelTab('users')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'users' ? 'bg-cyan-300/16 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)]' : 'hover:bg-white/6'}`}>Users</button>
-                <button type="button" onClick={() => setRightPanelTab('leaderboard')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'leaderboard' ? 'bg-cyan-300/16 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)]' : 'hover:bg-white/6'}`}>Top</button>
+                <button type="button" onClick={() => setRightPanelTab('chat')} className={`premium-button rounded-full px-3 py-1.5 transition ${rightPanelTab === 'chat' ? 'bg-cyan-300/16 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)]' : 'hover:bg-white/6'}`}>Chat{unreadCount > 0 ? <span className="ml-2 rounded-full bg-fuchsia-400/80 px-1.5 py-0.5 text-[10px] font-black text-white">{unreadCount}</span> : null}</button>
+                <button type="button" onClick={() => setRightPanelTab('users')} className={`premium-button rounded-full px-3 py-1.5 transition ${rightPanelTab === 'users' ? 'bg-cyan-300/16 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)]' : 'hover:bg-white/6'}`}>Users</button>
+                <button type="button" onClick={() => setRightPanelTab('leaderboard')} className={`premium-button rounded-full px-3 py-1.5 transition ${rightPanelTab === 'leaderboard' ? 'bg-cyan-300/16 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)]' : 'hover:bg-white/6'}`}>Top</button>
               </div>
             </div>
             <div className="mt-3 grid grid-cols-3 gap-2 text-left">
-              <div className="rounded-[1rem] border border-white/8 bg-white/5 px-3 py-2">
+              <div className="premium-card premium-float rounded-[1rem] border border-white/8 bg-white/5 px-3 py-2">
                 <p className="text-[9px] uppercase tracking-[0.16em] text-white/42">tab</p>
                 <p className="mt-1 text-sm font-black text-white">{rightPanelTab === 'chat' ? 'chat' : rightPanelTab === 'users' ? 'users' : 'top'}</p>
               </div>
-              <div className="rounded-[1rem] border border-white/8 bg-white/5 px-3 py-2">
+              <div className="premium-card premium-float rounded-[1rem] border border-white/8 bg-white/5 px-3 py-2 [animation-delay:140ms]">
                 <p className="text-[9px] uppercase tracking-[0.16em] text-white/42">live</p>
                 <p className="mt-1 text-sm font-black text-white">{onlineMembers}</p>
               </div>
-              <div className="rounded-[1rem] border border-fuchsia-300/12 bg-fuchsia-300/8 px-3 py-2">
+              <div className="premium-card premium-float rounded-[1rem] border border-fuchsia-300/12 bg-fuchsia-300/8 px-3 py-2 [animation-delay:280ms]">
                 <p className="text-[9px] uppercase tracking-[0.16em] text-fuchsia-100/48">queue</p>
                 <p className="mt-1 text-sm font-black text-fuchsia-50">{queueItems.length}</p>
               </div>
@@ -477,7 +477,7 @@ export function RoomPageView({
                       <span className="h-px flex-1 bg-gradient-to-l from-transparent via-fuchsia-300/60 to-fuchsia-300/15" />
                     </div>
                   ) : null}
-                <div className={`animate-chat-pop rounded-[1rem] border border-white/6 px-3 py-2 shadow-[0_0_18px_rgba(34,211,238,0.06)] ${message.userId === state.currentUser.id ? 'border-fuchsia-300/18 bg-[linear-gradient(90deg,rgba(217,70,239,0.14),rgba(255,255,255,0.02))]' : 'border-cyan-300/10 bg-[linear-gradient(90deg,rgba(34,211,238,0.12),rgba(255,255,255,0.02))]'}`}>
+                <div className={`premium-card animate-chat-pop rounded-[1rem] border border-white/6 px-3 py-2 shadow-[0_0_18px_rgba(34,211,238,0.06)] ${message.userId === state.currentUser.id ? 'border-fuchsia-300/18 bg-[linear-gradient(90deg,rgba(217,70,239,0.14),rgba(255,255,255,0.02))]' : 'border-cyan-300/10 bg-[linear-gradient(90deg,rgba(34,211,238,0.12),rgba(255,255,255,0.02))]'}`}>
                   <div className="flex items-center justify-between gap-3">
                     <div className="flex min-w-0 items-center gap-2.5">
                       <AvatarDisplay avatar={message.authorAvatar} label={message.authorLabel} size="sm" />
@@ -498,7 +498,7 @@ export function RoomPageView({
             <div className="mt-4 space-y-3 rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-3 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
               {state.members.length > 0 ? (
                 state.members.map((member) => (
-                  <div key={member.id} className={`group rounded-[1.15rem] border px-3 py-3 transition ${member.online ? 'border-cyan-300/14 bg-[linear-gradient(90deg,rgba(34,211,238,0.12),rgba(255,255,255,0.03))]' : 'border-white/8 bg-white/5 hover:bg-white/6'}`}>
+                  <div key={member.id} className={`premium-card group rounded-[1.15rem] border px-3 py-3 transition ${member.online ? 'border-cyan-300/14 bg-[linear-gradient(90deg,rgba(34,211,238,0.12),rgba(255,255,255,0.03))]' : 'border-white/8 bg-white/5 hover:bg-white/6'}`}>
                     <div className="flex items-start justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <span className={`mt-3 h-2.5 w-2.5 shrink-0 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]' : 'bg-white/20'}`} />
@@ -529,7 +529,7 @@ export function RoomPageView({
                   ['top_day', '24h'],
                   ['top_week', '7j'],
                 ] as const).map(([tab, label]) => (
-                  <button key={tab} type="button" onClick={() => setLeaderboardTab(tab)} className={`rounded-full px-3 py-2 transition ${leaderboardTab === tab ? 'bg-fuchsia-300/16 text-fuchsia-50' : 'hover:bg-white/6'}`}>
+                  <button key={tab} type="button" onClick={() => setLeaderboardTab(tab)} className={`premium-button rounded-full px-3 py-2 transition ${leaderboardTab === tab ? 'bg-fuchsia-300/16 text-fuchsia-50' : 'hover:bg-white/6'}`}>
                     {label}
                   </button>
                 ))}
@@ -564,7 +564,7 @@ export function RoomPageView({
                 <div className="rounded-[1rem] border border-dashed border-white/10 bg-white/5 px-4 py-5 text-sm text-white/55">Pas encore de score exploitable. Il faut bouger la room un peu.</div>
               ) : (
                 leaderboardEntries.map((entry) => (
-                  <div key={entry.id} className={`flex items-center justify-between rounded-[1rem] border px-3 py-3 ${entry.isCurrentUser ? 'border-fuchsia-300/25 bg-fuchsia-300/10' : 'border-white/8 bg-white/5'}`}>
+                <div key={entry.id} className={`premium-card flex items-center justify-between rounded-[1rem] border px-3 py-3 ${entry.isCurrentUser ? 'border-fuchsia-300/25 bg-fuchsia-300/10' : 'border-white/8 bg-white/5'}`}>
                     <div className="flex min-w-0 items-center gap-3">
                       <div className="flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-black/25 text-xs font-black text-white/78">{entry.medal ?? `#${entry.rank}`}</div>
                       <AvatarDisplay avatar={entry.avatar} label={entry.label} size="sm" />
@@ -585,7 +585,7 @@ export function RoomPageView({
                 <textarea value={chatComposer.value} onChange={(event) => chatComposer.onChange(event.target.value)} placeholder="Balance une réaction sur le morceau..." rows={2} className="w-full resize-none rounded-[1.1rem] border border-cyan-300/15 bg-[linear-gradient(180deg,rgba(0,0,0,0.28),rgba(34,211,238,0.05))] px-4 py-3 text-[13px] leading-5 text-white outline-none shadow-[inset_0_0_20px_rgba(34,211,238,0.04)] focus:border-cyan-300/45" />
                 {chatComposer.feedback?.tone === 'error' ? <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[chatComposer.feedback.tone]}`}>{chatComposer.feedback.text}</div> : null}
               </div>
-              <button type="button" onClick={chatComposer.onSubmit} disabled={chatComposer.submitting} className="mt-3 w-full rounded-full border border-cyan-300/20 bg-cyan-300/8 px-5 py-2.5 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-300/12 disabled:cursor-not-allowed disabled:opacity-60">
+              <button type="button" onClick={chatComposer.onSubmit} disabled={chatComposer.submitting} className="premium-button mt-3 w-full rounded-full border border-cyan-300/20 bg-cyan-300/8 px-5 py-2.5 text-sm font-semibold text-cyan-50 transition hover:bg-cyan-300/12 disabled:cursor-not-allowed disabled:opacity-60">
                 {chatComposer.submitting ? 'Envoi…' : 'Envoyer dans la room'}
               </button>
               {reactionControls ? (
@@ -601,7 +601,7 @@ export function RoomPageView({
                         key={key}
                         type="button"
                         onClick={() => reactionControls.onReact(key)}
-                        className={`rounded-[1rem] border px-3 py-3 text-left transition ${active ? 'border-fuchsia-300/35 bg-fuchsia-300/14 text-fuchsia-50 shadow-[0_0_18px_rgba(217,70,239,0.14)]' : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/8'}`}
+                        className={`premium-card premium-button rounded-[1rem] border px-3 py-3 text-left transition ${active ? 'border-fuchsia-300/35 bg-fuchsia-300/14 text-fuchsia-50 shadow-[0_0_18px_rgba(217,70,239,0.14)]' : 'border-white/10 bg-white/5 text-white/75 hover:bg-white/8'}`}
                       >
                         <div className="text-sm font-black uppercase tracking-[0.12em]">{label}</div>
                         <div className="mt-1 text-xs text-white/55">{reactionControls.counts[key]} vibe{reactionControls.counts[key] > 1 ? 's' : ''}</div>
@@ -621,7 +621,7 @@ export function RoomPageView({
 
       <div className={`grid gap-4 ${isWideLayout ? 'xl:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[340px_minmax(0,1fr)]' : 'xl:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]'}`}>
         <aside className="space-y-5">
-          <div className="rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(217,70,239,0.08),transparent_30%),linear-gradient(180deg,rgba(14,13,19,0.97),rgba(10,10,14,0.95))] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+          <div className="premium-card rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(217,70,239,0.08),transparent_30%),linear-gradient(180deg,rgba(14,13,19,0.97),rgba(10,10,14,0.95))] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
             <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Audience</p>
             <h3 className="mt-3 text-2xl font-black text-white">Dans la room</h3>
             <p className="mt-2 text-sm text-white/58">{state.presence?.enabled ? `${onlineMembers} présence${onlineMembers > 1 ? 's' : ''} live détectée${state.presence.connected ? 's' : ''}.` : 'Roster statique pour l’instant.'}</p>
@@ -638,7 +638,7 @@ export function RoomPageView({
             <div className="mt-5 space-y-3">
               {state.members.length > 0 ? (
                 state.members.map((member) => (
-                  <div key={member.id} className={`rounded-[1.25rem] border px-4 py-3 transition ${member.online ? 'border-fuchsia-300/16 bg-[linear-gradient(90deg,rgba(217,70,239,0.1),rgba(255,255,255,0.03))]' : 'border-white/10 bg-white/5'}`}>
+                  <div key={member.id} className={`premium-card rounded-[1.25rem] border px-4 py-3 transition ${member.online ? 'border-fuchsia-300/16 bg-[linear-gradient(90deg,rgba(217,70,239,0.1),rgba(255,255,255,0.03))]' : 'border-white/10 bg-white/5'}`}>
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <span className={`h-2.5 w-2.5 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.9)]' : 'bg-white/20'}`} />
@@ -661,17 +661,17 @@ export function RoomPageView({
           <div className="rounded-[2rem] border border-white/10 bg-white/5 p-5 text-sm text-white/72">
             <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Actions</p>
             <div className="mt-4 flex flex-wrap gap-3">
-              <Link href="/rooms" className="rounded-full bg-gold px-4 py-2 font-semibold text-night">Retour au lobby</Link>
-              {!state.currentUser.isLoggedIn ? <Link href="/login" className="rounded-full border border-white/15 px-4 py-2 font-semibold text-white/85">Se connecter</Link> : null}
-              {state.currentUser.isLoggedIn && avatarControls ? <button type="button" onClick={avatarControls.onOpen} className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 font-semibold text-cyan-50">Avatar lab</button> : null}
-              {denied ? <Link href="/rooms" className="rounded-full border border-white/15 px-4 py-2 font-semibold text-white/85">Demander un autre accès</Link> : null}
-              {missing ? <Link href="/rooms" className="rounded-full border border-white/15 px-4 py-2 font-semibold text-white/85">Explorer les rooms visibles</Link> : null}
+              <Link href="/rooms" className="premium-button rounded-full bg-gold px-4 py-2 font-semibold text-night">Retour au lobby</Link>
+              {!state.currentUser.isLoggedIn ? <Link href="/login" className="premium-button rounded-full border border-white/15 px-4 py-2 font-semibold text-white/85">Se connecter</Link> : null}
+              {state.currentUser.isLoggedIn && avatarControls ? <button type="button" onClick={avatarControls.onOpen} className="premium-button rounded-full border border-cyan-300/20 bg-cyan-300/10 px-4 py-2 font-semibold text-cyan-50">Avatar lab</button> : null}
+              {denied ? <Link href="/rooms" className="premium-button rounded-full border border-white/15 px-4 py-2 font-semibold text-white/85">Demander un autre accès</Link> : null}
+              {missing ? <Link href="/rooms" className="premium-button rounded-full border border-white/15 px-4 py-2 font-semibold text-white/85">Explorer les rooms visibles</Link> : null}
             </div>
           </div>
         </aside>
 
         <div className={`space-y-5 ${isWideLayout ? '2xl:grid 2xl:grid-cols-[minmax(0,1.2fr)_minmax(380px,0.8fr)] 2xl:gap-5 2xl:space-y-0' : ''}`}>
-          <div className="rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(217,70,239,0.08),transparent_30%),linear-gradient(180deg,rgba(15,11,18,0.98),rgba(9,9,12,0.96))] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+          <div className="premium-card rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(217,70,239,0.08),transparent_30%),linear-gradient(180deg,rgba(15,11,18,0.98),rgba(9,9,12,0.96))] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
             <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
               <div>
                 <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Queue</p>
@@ -679,11 +679,11 @@ export function RoomPageView({
                 <p className="mt-3 text-white/72">{queueItems.length > 0 ? `${queueItems.length} titre${queueItems.length > 1 ? 's' : ''} visible${queueItems.length > 1 ? 's' : ''} dans la file.` : 'La queue est vide. Ça se corrige vite.'}</p>
               </div>
               <div className="grid grid-cols-2 gap-2 md:min-w-[14rem]">
-                <div className="rounded-[1rem] border border-white/8 bg-white/5 px-3 py-2">
+                <div className="premium-card premium-float rounded-[1rem] border border-white/8 bg-white/5 px-3 py-2">
                   <p className="text-[9px] uppercase tracking-[0.16em] text-white/42">en file</p>
                   <p className="mt-1 text-sm font-black text-white">{queueItems.length}</p>
                 </div>
-                <div className="rounded-[1rem] border border-gold/12 bg-gold/8 px-3 py-2">
+                <div className="premium-card premium-float rounded-[1rem] border border-gold/12 bg-gold/8 px-3 py-2 [animation-delay:180ms]">
                   <p className="text-[9px] uppercase tracking-[0.16em] text-gold/55">now playing</p>
                   <p className="mt-1 text-sm font-black text-gold">{queueItems.some((item) => item.status === 'playing') ? 'live' : 'standby'}</p>
                 </div>
@@ -692,7 +692,7 @@ export function RoomPageView({
             <div className="mt-5 space-y-3">
               {queueItems.length > 0 ? (
                 queueItems.map((item) => (
-                  <div key={item.id} className={`group flex gap-3 rounded-[1.5rem] border p-3 transition ${item.status === 'playing' ? 'border-gold/20 bg-[linear-gradient(90deg,rgba(212,175,55,0.12),rgba(255,255,255,0.03))] shadow-[0_0_24px_rgba(212,175,55,0.08)]' : 'border-white/10 bg-black/30 hover:bg-black/35'}`}>
+                  <div key={item.id} className={`premium-card group flex gap-3 rounded-[1.5rem] border p-3 transition ${item.status === 'playing' ? 'border-gold/20 bg-[linear-gradient(90deg,rgba(212,175,55,0.12),rgba(255,255,255,0.03))] shadow-[0_0_24px_rgba(212,175,55,0.08)]' : 'border-white/10 bg-black/30 hover:bg-black/35'}`}>
                     {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="Miniature YouTube" className="h-16 w-28 rounded-xl border border-white/8 object-cover shadow-[0_10px_24px_rgba(0,0,0,0.28)]" /> : <div className="flex h-16 w-28 items-center justify-center rounded-xl border border-white/8 bg-white/5 text-xs text-white/40">no thumb</div>}
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
@@ -717,18 +717,18 @@ export function RoomPageView({
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.06),transparent_32%),linear-gradient(180deg,rgba(15,11,18,0.98),rgba(9,9,12,0.96))] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+          <div className="premium-card rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.06),transparent_32%),linear-gradient(180deg,rgba(15,11,18,0.98),rgba(9,9,12,0.96))] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
             <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Ajouter un titre</p>
             <h3 className="mt-3 text-2xl font-black text-white">Drop YouTube dans la file</h3>
             {queueComposer ? (
               <>
                 <p className="mt-3 text-white/72">Colle un lien YouTube propre. Le titre est optionnel, sinon on garde une version basée sur l’identifiant vidéo.</p>
                 <div className="mt-5 space-y-3">
-                  <input type="text" value={queueComposer.url} onChange={(event) => queueComposer.onUrlChange(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40" />
-                  <input type="text" value={queueComposer.title} onChange={(event) => queueComposer.onTitleChange(event.target.value)} placeholder="Titre custom optionnel" className="w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40" />
+                  <input type="text" value={queueComposer.url} onChange={(event) => queueComposer.onUrlChange(event.target.value)} placeholder="https://www.youtube.com/watch?v=..." className="premium-button w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40 focus:shadow-[0_0_0_1px_rgba(212,175,55,0.2),0_0_30px_rgba(212,175,55,0.08)]" />
+                  <input type="text" value={queueComposer.title} onChange={(event) => queueComposer.onTitleChange(event.target.value)} placeholder="Titre custom optionnel" className="premium-button w-full rounded-2xl border border-white/10 bg-black/20 px-4 py-3 text-white outline-none focus:border-gold/40 focus:shadow-[0_0_0_1px_rgba(212,175,55,0.2),0_0_30px_rgba(212,175,55,0.08)]" />
                   {queueComposer.feedback ? <div className={`rounded-2xl border px-4 py-3 text-sm ${feedbackStyles[queueComposer.feedback.tone]}`}>{queueComposer.feedback.text}</div> : null}
                 </div>
-                <button type="button" onClick={queueComposer.onSubmit} disabled={queueComposer.submitting} className="mt-5 rounded-full bg-gold px-5 py-3 font-semibold text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
+                <button type="button" onClick={queueComposer.onSubmit} disabled={queueComposer.submitting} className="premium-button mt-5 rounded-full bg-gold px-5 py-3 font-semibold text-night transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-60">
                   {queueComposer.submitting ? 'Ajout…' : 'Ajouter à la queue'}
                 </button>
               </>
