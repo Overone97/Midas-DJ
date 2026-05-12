@@ -45,6 +45,13 @@ const reactionVisuals: Record<RoomReactionType, { label: string; emoji: string; 
   meh: { label: 'Meh', emoji: '🫠', accent: 'text-amber-50', glow: 'from-amber-300/30 to-transparent' },
 };
 
+const pitLaneLabels: Record<string, string> = {
+  front: 'front rail',
+  'mid-front': 'core',
+  'mid-back': 'backline',
+  back: 'outer ring',
+};
+
 function getExpectedOffset(playback?: PlaybackPreview) {
   if (!playback) {
     return 0;
@@ -315,6 +322,11 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
       : sceneMood === 'hype'
         ? 'shadow-[0_0_60px_rgba(244,114,182,0.18)]'
         : 'shadow-[0_0_28px_rgba(34,211,238,0.08)]';
+  const highlightedLane = crowdMembers.length > 0 ? crowdMembers[0] ? pitAssignments[0]?.slot.lane ?? 'front' : 'front' : 'front';
+  const animatedCount = crowdMembers.filter((member) => {
+    const reaction = reactions?.userReactions?.[member.id];
+    return reaction === 'woot' || reaction === 'grab';
+  }).length;
 
   return (
     <div className="overflow-hidden rounded-[2rem] border border-fuchsia-400/20 bg-[radial-gradient(circle_at_top,#fb718522,transparent_28%),radial-gradient(circle_at_15%_75%,#9333ea26,transparent_30%),radial-gradient(circle_at_85%_20%,#22d3ee22,transparent_28%),linear-gradient(180deg,#20112d,#09060f)] p-4 shadow-[0_24px_90px_rgba(0,0,0,0.55)]">
@@ -401,10 +413,29 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                 </div>
               </div>
 
-              <div className={`absolute inset-x-0 bottom-0 z-[8] rounded-t-[2.4rem] border-t border-white/8 bg-[linear-gradient(180deg,rgba(11,11,17,0.7),rgba(5,5,9,0.98))] px-5 pt-8 backdrop-blur-sm ${isWideLayout ? 'pb-9' : 'pb-7'}`}>
-                <div className="mb-3 flex items-center justify-between gap-3 text-xs uppercase tracking-[0.18em] text-white/50">
-                  <span>Fosse</span>
-                  <span>{crowdMembers.length > 0 ? `${crowdMembers.length} auditeurs visibles` : 'en attente'}</span>
+              <div className={`absolute inset-x-0 bottom-0 z-[8] rounded-t-[2.4rem] border-t border-white/8 bg-[linear-gradient(180deg,rgba(11,11,17,0.76),rgba(5,5,9,0.99))] px-5 pt-8 backdrop-blur-sm ${isWideLayout ? 'pb-9' : 'pb-7'}`}>
+                <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
+                  <div>
+                    <p className="text-[10px] uppercase tracking-[0.28em] text-fuchsia-100/52">Audience zone</p>
+                    <div className="mt-1 flex items-center gap-3">
+                      <h5 className="text-lg font-black text-white">Fosse</h5>
+                      <span className="rounded-full border border-white/10 bg-white/5 px-2.5 py-1 text-[10px] uppercase tracking-[0.16em] text-white/62">{pitLaneLabels[highlightedLane] ?? 'front rail focus'}</span>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-left lg:min-w-[19rem] lg:grid-cols-3">
+                    <div className="rounded-[1rem] border border-white/8 bg-white/5 px-3 py-2">
+                      <p className="text-[9px] uppercase tracking-[0.18em] text-white/42">visibles</p>
+                      <p className="mt-1 text-sm font-black text-white">{crowdMembers.length}</p>
+                    </div>
+                    <div className="rounded-[1rem] border border-fuchsia-300/15 bg-fuchsia-300/8 px-3 py-2">
+                      <p className="text-[9px] uppercase tracking-[0.18em] text-fuchsia-100/50">animés</p>
+                      <p className="mt-1 text-sm font-black text-fuchsia-50">{animatedCount}</p>
+                    </div>
+                    <div className="rounded-[1rem] border border-cyan-300/15 bg-cyan-300/8 px-3 py-2 col-span-2 lg:col-span-1">
+                      <p className="text-[9px] uppercase tracking-[0.18em] text-cyan-100/50">vibe</p>
+                      <p className="mt-1 text-sm font-black text-cyan-50">{sceneMood === 'hype' ? 'peak' : sceneMood === 'groove' ? 'groove' : 'warmup'}</p>
+                    </div>
+                  </div>
                 </div>
                 {reactions ? (
                   <div className="mb-3 flex flex-wrap gap-2">
@@ -415,7 +446,8 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                     ))}
                   </div>
                 ) : null}
-                <div className={`relative overflow-hidden rounded-[1.6rem] bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.06),transparent_38%),linear-gradient(180deg,rgba(20,18,32,0.34),rgba(8,8,14,0.12))] px-4 ${isWideLayout ? 'py-6' : 'py-5'}`}>
+                <div className={`relative overflow-hidden rounded-[1.6rem] border border-white/6 bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.07),transparent_38%),linear-gradient(180deg,rgba(20,18,32,0.42),rgba(8,8,14,0.18))] px-4 ${isWideLayout ? 'py-6' : 'py-5'}`}>
+                  <div className="pointer-events-none absolute inset-x-[12%] top-3 z-[1] h-px bg-gradient-to-r from-transparent via-white/12 to-transparent" />
                   <div className="pointer-events-none absolute inset-x-6 bottom-[9.8rem] z-[9] h-28 overflow-hidden">
                     {reactionBursts.map((burst, index) => (
                       <div
@@ -433,6 +465,14 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                   </div>
                   <div className={`relative overflow-hidden pb-2 ${isWideLayout ? 'min-h-[24rem]' : 'min-h-[20rem]'}`}>
                     <div className="pointer-events-none absolute inset-x-0 bottom-[0.9rem] h-[8.5rem] bg-[radial-gradient(circle_at_50%_0%,rgba(244,114,182,0.08),transparent_52%),linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,0.03))]" />
+                    <div className="pointer-events-none absolute inset-x-[9%] bottom-[1.2rem] top-6 rounded-[2rem] border border-white/[0.04]" />
+                    <div className="pointer-events-none absolute inset-x-[12%] bottom-[2.4rem] top-8 rounded-[2rem] border border-white/[0.03]" />
+                    <div className="pointer-events-none absolute left-1/2 top-5 h-[84%] w-px -translate-x-1/2 bg-gradient-to-b from-white/10 via-transparent to-transparent" />
+                    <div className="pointer-events-none absolute inset-x-[14%] top-5 z-[2] flex justify-between text-[9px] uppercase tracking-[0.22em] text-white/28">
+                      <span>front rail</span>
+                      <span>core crowd</span>
+                      <span>backline</span>
+                    </div>
                     {defaultPitSlots.map((slot) => {
                       const assigned = pitAssignments.find((entry) => entry.slot.id === slot.id);
                       const member = assigned?.member;
@@ -452,13 +492,13 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                             opacity: member ? 1 : 0,
                           }}
                         >
-                          <div className="flex w-[4.9rem] flex-col items-center justify-end">
+                          <div className="flex w-[5.4rem] flex-col items-center justify-end">
                             {member ? (
                               <>
-                                <div className={`absolute bottom-[1.15rem] left-1/2 h-10 w-12 -translate-x-1/2 rounded-full blur-xl transition-all ${isDancing ? 'bg-fuchsia-400/28' : member.online ? 'bg-cyan-300/18' : 'bg-white/8'}`} />
-                                <div className={`absolute bottom-[0.8rem] left-1/2 h-3 w-11 -translate-x-1/2 rounded-full transition-all ${isDancing ? 'bg-fuchsia-300/30 shadow-[0_0_18px_rgba(217,70,239,0.22)]' : member.online ? 'bg-cyan-300/18' : 'bg-white/8'}`} />
-                                <div className="relative flex h-[6.8rem] w-[4.9rem] items-start justify-center">
-                                  <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-3">
+                                <div className={`absolute bottom-[1.05rem] left-1/2 h-11 w-14 -translate-x-1/2 rounded-full blur-xl transition-all ${isDancing ? 'bg-fuchsia-400/30' : member.online ? 'bg-cyan-300/18' : 'bg-white/8'}`} />
+                                <div className={`absolute bottom-[0.7rem] left-1/2 h-3.5 w-12 -translate-x-1/2 rounded-full transition-all ${isDancing ? 'bg-fuchsia-300/32 shadow-[0_0_18px_rgba(217,70,239,0.22)]' : member.online ? 'bg-cyan-300/18' : 'bg-white/8'}`} />
+                                <div className="relative flex h-[8.1rem] w-[5.4rem] items-start justify-center">
+                                  <div className="absolute left-1/2 top-0 -translate-x-1/2 -translate-y-2.5">
                                     <AvatarDisplay
                                       avatar={member.avatar}
                                       label={member.label}
@@ -468,8 +508,10 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                                       badge={reaction === 'grab' ? 'Wants this track' : undefined}
                                     />
                                   </div>
-                                  <p className={`absolute left-1/2 top-[4.8rem] max-w-[5.8rem] -translate-x-1/2 truncate text-center text-[11px] font-semibold transition ${isDancing ? 'text-white' : 'text-white/76'}`}>{member.label}</p>
-                                  <p className={`absolute left-1/2 top-[5.9rem] -translate-x-1/2 text-[9px] uppercase tracking-[0.18em] transition ${isDancing ? 'text-fuchsia-200/82' : reaction === 'meh' ? 'text-white/48' : reaction === 'grab' ? 'text-cyan-100/76' : 'text-white/34'}`}>{reaction === 'woot' ? 'dancing' : reaction === 'meh' ? 'meh' : reaction === 'grab' ? 'grab' : member.online ? 'idle' : 'away'}</p>
+                                  <div className="absolute left-1/2 top-[4.75rem] flex -translate-x-1/2 flex-col items-center gap-1 rounded-[0.9rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.06),rgba(255,255,255,0.01))] px-2 py-1.5 shadow-[0_8px_24px_rgba(0,0,0,0.26)]">
+                                    <p className={`max-w-[5.8rem] truncate text-center text-[11px] font-semibold transition ${isDancing ? 'text-white' : 'text-white/76'}`}>{member.label}</p>
+                                    <p className={`text-[8px] uppercase tracking-[0.2em] transition ${isDancing ? 'text-fuchsia-200/84' : reaction === 'meh' ? 'text-white/48' : reaction === 'grab' ? 'text-cyan-100/76' : 'text-white/34'}`}>{reaction === 'woot' ? 'dancing' : reaction === 'meh' ? 'meh' : reaction === 'grab' ? 'grab' : member.online ? 'idle' : 'away'}</p>
+                                  </div>
                                 </div>
                               </>
                             ) : null}
