@@ -148,6 +148,117 @@ a {
   }
 }
 
+@keyframes premium-float {
+  0%,
+  100% {
+    transform: translate3d(0, 0, 0);
+  }
+  50% {
+    transform: translate3d(0, -4px, 0);
+  }
+}
+
+@keyframes premium-sheen {
+  0% {
+    transform: translateX(-140%) skewX(-18deg);
+    opacity: 0;
+  }
+  18% {
+    opacity: 0.22;
+  }
+  55% {
+    opacity: 0.08;
+  }
+  100% {
+    transform: translateX(220%) skewX(-18deg);
+    opacity: 0;
+  }
+}
+
+@keyframes premium-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 rgba(34, 211, 238, 0);
+  }
+  50% {
+    box-shadow: 0 0 28px rgba(34, 211, 238, 0.08);
+  }
+}
+
 .reaction-burst {
   animation: reaction-rise 1.9s ease-out forwards;
+}
+
+.premium-card {
+  position: relative;
+  overflow: hidden;
+  transition:
+    transform 220ms ease,
+    border-color 220ms ease,
+    background-color 220ms ease,
+    box-shadow 260ms ease;
+  will-change: transform, box-shadow;
+}
+
+.premium-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 0%, rgba(255,255,255,0.09) 42%, transparent 58%);
+  transform: translateX(-140%) skewX(-18deg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.premium-card:hover,
+.premium-card:focus-within {
+  transform: translateY(-2px) scale(1.005);
+  box-shadow: 0 18px 42px rgba(0, 0, 0, 0.24);
+}
+
+.premium-card:hover::before,
+.premium-card:focus-within::before {
+  animation: premium-sheen 900ms ease;
+}
+
+.premium-card-soft {
+  animation: premium-pulse 3.8s ease-in-out infinite;
+}
+
+.premium-float {
+  animation: premium-float 4.2s ease-in-out infinite;
+}
+
+.premium-button {
+  transition:
+    transform 180ms ease,
+    box-shadow 220ms ease,
+    background-color 220ms ease,
+    border-color 220ms ease;
+}
+
+.premium-button:hover,
+.premium-button:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.22);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .premium-card,
+  .premium-button,
+  .premium-float,
+  .premium-card-soft,
+  .reaction-burst,
+  .animate-chat-pop,
+  .avatar-idle,
+  .avatar-groove,
+  .avatar-hype {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
+
+  .premium-card::before {
+    display: none;
+  }
 }
