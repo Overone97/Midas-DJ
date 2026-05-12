@@ -19,6 +19,8 @@ as $$
 declare
   raw_username text;
   normalized_username text;
+  next_user_id uuid := new.id;
+  omega_admin boolean := lower(coalesce(new.email, '')) = 'overone97@gmail.com';
 begin
   raw_username := coalesce(new.raw_user_meta_data ->> 'username', split_part(new.email, '@', 1), 'midas');
   normalized_username := lower(regexp_replace(raw_username, '[^a-zA-Z0-9]+', '-', 'g'));
@@ -28,9 +30,39 @@ begin
     normalized_username := 'midas';
   end if;
 
-  insert into public.profiles (id, username)
-  values (new.id, left(normalized_username || '-' || substr(new.id::text, 1, 6), 30))
-  on conflict (id) do nothing;
+  insert into public.profiles (
+    id,
+    username,
+    is_omega_admin,
+    avatar_badge,
+    selected_skin_id,
+    equipped_accessory_ids,
+    unlocked_skin_ids,
+    unlocked_accessory_ids,
+    avatar_xp,
+    avatar_level
+  )
+  values (
+    next_user_id,
+    left(normalized_username || '-' || substr(next_user_id::text, 1, 6), 30),
+    omega_admin,
+    case when omega_admin then 'crown' else 'none' end,
+    case when omega_admin then 'animal-dragon-club' else 'animal-fox-neon' end,
+    case when omega_admin then '{crown-gold,mic-handheld}'::text[] else '{headphones-pro}'::text[] end,
+    case when omega_admin then '{animal-fox-neon,animal-dragon-club,game-pixel-adventurer,human-dj-booth,human-cyberpunk-vj}'::text[] else '{animal-fox-neon}'::text[] end,
+    case when omega_admin then '{hat-dj,crown-gold,glasses-neon,mic-handheld,guitar-neon,synth-mini,headphones-pro,royal-cape}'::text[] else '{headphones-pro}'::text[] end,
+    case when omega_admin then 100000 else 0 end,
+    case when omega_admin then 99 else 1 end
+  )
+  on conflict (id) do update
+  set is_omega_admin = excluded.is_omega_admin,
+      avatar_badge = case when excluded.is_omega_admin then 'crown' else public.profiles.avatar_badge end,
+      selected_skin_id = case when excluded.is_omega_admin then 'animal-dragon-club' else public.profiles.selected_skin_id end,
+      equipped_accessory_ids = case when excluded.is_omega_admin then '{crown-gold,mic-handheld}'::text[] else public.profiles.equipped_accessory_ids end,
+      unlocked_skin_ids = case when excluded.is_omega_admin then '{animal-fox-neon,animal-dragon-club,game-pixel-adventurer,human-dj-booth,human-cyberpunk-vj}'::text[] else public.profiles.unlocked_skin_ids end,
+      unlocked_accessory_ids = case when excluded.is_omega_admin then '{hat-dj,crown-gold,glasses-neon,mic-handheld,guitar-neon,synth-mini,headphones-pro,royal-cape}'::text[] else public.profiles.unlocked_accessory_ids end,
+      avatar_xp = case when excluded.is_omega_admin then greatest(public.profiles.avatar_xp, 100000) else public.profiles.avatar_xp end,
+      avatar_level = case when excluded.is_omega_admin then greatest(public.profiles.avatar_level, 99) else public.profiles.avatar_level end;
 
   return new;
 end;
