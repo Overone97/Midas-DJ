@@ -434,16 +434,32 @@ export function RoomPageView({
           )}
         </div>
 
-        <div className={`rounded-[1.8rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(8,14,20,0.96),rgba(8,10,16,0.94))] p-4 xl:sticky xl:top-4 ${isWideLayout ? '2xl:p-5' : ''}`}>
-          <div className="flex items-center justify-between gap-3">
-            <div>
-              <p className="text-[10px] uppercase tracking-[0.22em] text-cyan-100/72">Room live</p>
-              <h3 className="mt-1 text-lg font-black text-white">Le dancefloor parle</h3>
+        <div className={`rounded-[1.8rem] border border-cyan-300/10 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.08),transparent_28%),linear-gradient(180deg,rgba(8,14,20,0.97),rgba(8,10,16,0.96))] p-4 shadow-[0_18px_55px_rgba(0,0,0,0.28)] xl:sticky xl:top-4 ${isWideLayout ? '2xl:p-5' : ''}`}>
+          <div className="rounded-[1.35rem] border border-white/8 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] p-3">
+            <div className="flex items-center justify-between gap-3">
+              <div>
+                <p className="text-[10px] uppercase tracking-[0.24em] text-cyan-100/66">Room live</p>
+                <h3 className="mt-1 text-lg font-black text-white">Le dancefloor parle</h3>
+              </div>
+              <div className="flex rounded-full border border-white/10 bg-black/25 p-1 text-xs font-semibold text-white/70">
+                <button type="button" onClick={() => setRightPanelTab('chat')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'chat' ? 'bg-cyan-300/16 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)]' : 'hover:bg-white/6'}`}>Chat{unreadCount > 0 ? <span className="ml-2 rounded-full bg-fuchsia-400/80 px-1.5 py-0.5 text-[10px] font-black text-white">{unreadCount}</span> : null}</button>
+                <button type="button" onClick={() => setRightPanelTab('users')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'users' ? 'bg-cyan-300/16 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)]' : 'hover:bg-white/6'}`}>Users</button>
+                <button type="button" onClick={() => setRightPanelTab('leaderboard')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'leaderboard' ? 'bg-cyan-300/16 text-cyan-50 shadow-[0_0_16px_rgba(34,211,238,0.12)]' : 'hover:bg-white/6'}`}>Top</button>
+              </div>
             </div>
-            <div className="flex rounded-full border border-white/10 bg-black/25 p-1 text-xs font-semibold text-white/70">
-              <button type="button" onClick={() => setRightPanelTab('chat')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'chat' ? 'bg-cyan-300/16 text-cyan-50' : 'hover:bg-white/6'}`}>Chat{unreadCount > 0 ? <span className="ml-2 rounded-full bg-fuchsia-400/80 px-1.5 py-0.5 text-[10px] font-black text-white">{unreadCount}</span> : null}</button>
-              <button type="button" onClick={() => setRightPanelTab('users')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'users' ? 'bg-cyan-300/16 text-cyan-50' : 'hover:bg-white/6'}`}>Users</button>
-              <button type="button" onClick={() => setRightPanelTab('leaderboard')} className={`rounded-full px-3 py-1.5 transition ${rightPanelTab === 'leaderboard' ? 'bg-cyan-300/16 text-cyan-50' : 'hover:bg-white/6'}`}>Top</button>
+            <div className="mt-3 grid grid-cols-3 gap-2 text-left">
+              <div className="rounded-[1rem] border border-white/8 bg-white/5 px-3 py-2">
+                <p className="text-[9px] uppercase tracking-[0.16em] text-white/42">tab</p>
+                <p className="mt-1 text-sm font-black text-white">{rightPanelTab === 'chat' ? 'chat' : rightPanelTab === 'users' ? 'users' : 'top'}</p>
+              </div>
+              <div className="rounded-[1rem] border border-white/8 bg-white/5 px-3 py-2">
+                <p className="text-[9px] uppercase tracking-[0.16em] text-white/42">live</p>
+                <p className="mt-1 text-sm font-black text-white">{onlineMembers}</p>
+              </div>
+              <div className="rounded-[1rem] border border-fuchsia-300/12 bg-fuchsia-300/8 px-3 py-2">
+                <p className="text-[9px] uppercase tracking-[0.16em] text-fuchsia-100/48">queue</p>
+                <p className="mt-1 text-sm font-black text-fuchsia-50">{queueItems.length}</p>
+              </div>
             </div>
           </div>
 
@@ -482,15 +498,22 @@ export function RoomPageView({
             <div className="mt-4 space-y-3 rounded-[1.2rem] border border-cyan-300/10 bg-[linear-gradient(180deg,rgba(2,6,10,0.66),rgba(4,6,12,0.88))] p-3 shadow-[inset_0_0_30px_rgba(34,211,238,0.05)]">
               {state.members.length > 0 ? (
                 state.members.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between rounded-[1rem] border border-white/8 bg-white/5 px-3 py-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" />
-                      <div className="min-w-0">
-                        <p className="truncate text-sm font-semibold text-white/90">{member.label}</p>
-                        <p className="text-[10px] uppercase tracking-[0.14em] text-white/45">{member.online ? 'en ligne' : 'hors piste'} · lvl {member.avatarProgression?.level ?? 1}</p>
+                  <div key={member.id} className={`group rounded-[1.15rem] border px-3 py-3 transition ${member.online ? 'border-cyan-300/14 bg-[linear-gradient(90deg,rgba(34,211,238,0.12),rgba(255,255,255,0.03))]' : 'border-white/8 bg-white/5 hover:bg-white/6'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className={`mt-3 h-2.5 w-2.5 shrink-0 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.8)]' : 'bg-white/20'}`} />
+                        <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" />
+                        <div className="min-w-0">
+                          <p className="truncate text-sm font-semibold text-white/92">{member.label}</p>
+                          <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-white/45">{member.online ? 'en ligne' : 'hors piste'} · lvl {member.avatarProgression?.level ?? 1}</p>
+                        </div>
                       </div>
+                      <span className={`rounded-full border px-3 py-1 text-[10px] ${roleAccent[member.role]}`}>{roleLabels[member.role]}</span>
                     </div>
-                    <span className={`rounded-full border px-3 py-1 text-[10px] ${roleAccent[member.role]}`}>{roleLabels[member.role]}</span>
+                    <div className="mt-3 flex items-center justify-between rounded-[0.95rem] border border-white/6 bg-black/20 px-3 py-2 text-[10px] uppercase tracking-[0.16em] text-white/50">
+                      <span>{member.online ? 'sur la piste' : 'idle'}</span>
+                      <span>{formatXp(member.avatarProgression?.xp ?? 0)}</span>
+                    </div>
                   </div>
                 ))
               ) : (
@@ -598,20 +621,35 @@ export function RoomPageView({
 
       <div className={`grid gap-4 ${isWideLayout ? 'xl:grid-cols-[300px_minmax(0,1fr)] 2xl:grid-cols-[340px_minmax(0,1fr)]' : 'xl:grid-cols-[280px_minmax(0,1fr)] 2xl:grid-cols-[320px_minmax(0,1fr)]'}`}>
         <aside className="space-y-5">
-          <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(14,13,19,0.96),rgba(10,10,14,0.95))] p-5">
+          <div className="rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(217,70,239,0.08),transparent_30%),linear-gradient(180deg,rgba(14,13,19,0.97),rgba(10,10,14,0.95))] p-5 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
             <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Audience</p>
             <h3 className="mt-3 text-2xl font-black text-white">Dans la room</h3>
             <p className="mt-2 text-sm text-white/58">{state.presence?.enabled ? `${onlineMembers} présence${onlineMembers > 1 ? 's' : ''} live détectée${state.presence.connected ? 's' : ''}.` : 'Roster statique pour l’instant.'}</p>
+            <div className="mt-4 grid grid-cols-2 gap-2">
+              <div className="rounded-[1rem] border border-white/8 bg-white/5 px-3 py-2">
+                <p className="text-[9px] uppercase tracking-[0.16em] text-white/42">online</p>
+                <p className="mt-1 text-sm font-black text-white">{onlineMembers}</p>
+              </div>
+              <div className="rounded-[1rem] border border-cyan-300/12 bg-cyan-300/8 px-3 py-2">
+                <p className="text-[9px] uppercase tracking-[0.16em] text-cyan-100/46">membres</p>
+                <p className="mt-1 text-sm font-black text-cyan-50">{state.members.length}</p>
+              </div>
+            </div>
             <div className="mt-5 space-y-3">
               {state.members.length > 0 ? (
                 state.members.map((member) => (
-                  <div key={member.id} className="flex items-center justify-between rounded-[1.25rem] border border-white/10 bg-white/5 px-4 py-3">
-                    <div className="flex min-w-0 items-center gap-3">
-                      <span className={`h-2.5 w-2.5 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.9)]' : 'bg-white/20'}`} />
-                      <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" />
-                      <span className="truncate font-medium text-white/88">{member.label}</span>
+                  <div key={member.id} className={`rounded-[1.25rem] border px-4 py-3 transition ${member.online ? 'border-fuchsia-300/16 bg-[linear-gradient(90deg,rgba(217,70,239,0.1),rgba(255,255,255,0.03))]' : 'border-white/10 bg-white/5'}`}>
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex min-w-0 items-center gap-3">
+                        <span className={`h-2.5 w-2.5 rounded-full ${member.online ? 'bg-emerald-400 shadow-[0_0_12px_rgba(74,222,128,0.9)]' : 'bg-white/20'}`} />
+                        <AvatarDisplay avatar={member.avatar} label={member.label} size="sm" />
+                        <div className="min-w-0">
+                          <span className="block truncate font-medium text-white/88">{member.label}</span>
+                          <span className="block text-[10px] uppercase tracking-[0.16em] text-white/44">lvl {member.avatarProgression?.level ?? 1} · {member.online ? 'live' : 'idle'}</span>
+                        </div>
+                      </div>
+                      <span className={`rounded-full border px-3 py-1 text-xs ${roleAccent[member.role]}`}>{roleLabels[member.role]}</span>
                     </div>
-                    <span className={`rounded-full border px-3 py-1 text-xs ${roleAccent[member.role]}`}>{roleLabels[member.role]}</span>
                   </div>
                 ))
               ) : (
@@ -633,24 +671,42 @@ export function RoomPageView({
         </aside>
 
         <div className={`space-y-5 ${isWideLayout ? '2xl:grid 2xl:grid-cols-[minmax(0,1.2fr)_minmax(380px,0.8fr)] 2xl:gap-5 2xl:space-y-0' : ''}`}>
-          <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(15,11,18,0.98),rgba(9,9,12,0.96))] p-6">
-            <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Queue</p>
-            <h3 className="mt-3 text-2xl font-black text-white">File collaborative</h3>
-            <p className="mt-3 text-white/72">{queueItems.length > 0 ? `${queueItems.length} titre${queueItems.length > 1 ? 's' : ''} visible${queueItems.length > 1 ? 's' : ''} dans la file.` : 'La queue est vide. Ça se corrige vite.'}</p>
+          <div className="rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(217,70,239,0.08),transparent_30%),linear-gradient(180deg,rgba(15,11,18,0.98),rgba(9,9,12,0.96))] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
+            <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Queue</p>
+                <h3 className="mt-3 text-2xl font-black text-white">File collaborative</h3>
+                <p className="mt-3 text-white/72">{queueItems.length > 0 ? `${queueItems.length} titre${queueItems.length > 1 ? 's' : ''} visible${queueItems.length > 1 ? 's' : ''} dans la file.` : 'La queue est vide. Ça se corrige vite.'}</p>
+              </div>
+              <div className="grid grid-cols-2 gap-2 md:min-w-[14rem]">
+                <div className="rounded-[1rem] border border-white/8 bg-white/5 px-3 py-2">
+                  <p className="text-[9px] uppercase tracking-[0.16em] text-white/42">en file</p>
+                  <p className="mt-1 text-sm font-black text-white">{queueItems.length}</p>
+                </div>
+                <div className="rounded-[1rem] border border-gold/12 bg-gold/8 px-3 py-2">
+                  <p className="text-[9px] uppercase tracking-[0.16em] text-gold/55">now playing</p>
+                  <p className="mt-1 text-sm font-black text-gold">{queueItems.some((item) => item.status === 'playing') ? 'live' : 'standby'}</p>
+                </div>
+              </div>
+            </div>
             <div className="mt-5 space-y-3">
               {queueItems.length > 0 ? (
                 queueItems.map((item) => (
-                  <div key={item.id} className="flex gap-3 rounded-[1.5rem] border border-white/10 bg-black/30 p-3">
-                    {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="Miniature YouTube" className="h-16 w-28 rounded-xl object-cover" /> : <div className="flex h-16 w-28 items-center justify-center rounded-xl bg-white/5 text-xs text-white/40">no thumb</div>}
+                  <div key={item.id} className={`group flex gap-3 rounded-[1.5rem] border p-3 transition ${item.status === 'playing' ? 'border-gold/20 bg-[linear-gradient(90deg,rgba(212,175,55,0.12),rgba(255,255,255,0.03))] shadow-[0_0_24px_rgba(212,175,55,0.08)]' : 'border-white/10 bg-black/30 hover:bg-black/35'}`}>
+                    {item.thumbnailUrl ? <img src={item.thumbnailUrl} alt="Miniature YouTube" className="h-16 w-28 rounded-xl border border-white/8 object-cover shadow-[0_10px_24px_rgba(0,0,0,0.28)]" /> : <div className="flex h-16 w-28 items-center justify-center rounded-xl border border-white/8 bg-white/5 text-xs text-white/40">no thumb</div>}
                     <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center gap-2">
                         <span className="rounded-full border border-white/10 bg-white/5 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/55">#{item.position}</span>
-                        <span className="rounded-full border border-gold/15 bg-gold/10 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-gold/85">{item.status}</span>
+                        <span className={`rounded-full border px-2 py-1 text-[10px] uppercase tracking-[0.18em] ${item.status === 'playing' ? 'border-gold/20 bg-gold/10 text-gold' : 'border-white/10 bg-white/5 text-white/60'}`}>{item.status}</span>
+                        <span className="rounded-full border border-white/10 bg-black/20 px-2 py-1 text-[10px] uppercase tracking-[0.18em] text-white/48">{formatDuration(item.durationSeconds)}</span>
                       </div>
-                      <p className="mt-2 truncate font-semibold text-white/88">{item.title}</p>
-                      <div className="mt-2 flex items-center gap-2 text-xs text-white/55">
-                        <AvatarDisplay avatar={item.addedByAvatar} label={item.addedByLabel} size="sm" />
-                        <p>Ajouté par {item.addedByLabel} · {formatDuration(item.durationSeconds)}</p>
+                      <p className="mt-2 truncate text-[15px] font-semibold text-white/90">{item.title}</p>
+                      <div className="mt-3 flex items-center justify-between gap-3 rounded-[1rem] border border-white/6 bg-[linear-gradient(180deg,rgba(255,255,255,0.04),rgba(255,255,255,0.01))] px-3 py-2 text-xs text-white/55">
+                        <div className="flex min-w-0 items-center gap-2">
+                          <AvatarDisplay avatar={item.addedByAvatar} label={item.addedByLabel} size="sm" />
+                          <p className="truncate">Ajouté par {item.addedByLabel}</p>
+                        </div>
+                        <span className="shrink-0 text-[10px] uppercase tracking-[0.16em] text-white/42">{item.status === 'playing' ? 'sur scène' : 'en attente'}</span>
                       </div>
                     </div>
                   </div>
@@ -661,7 +717,7 @@ export function RoomPageView({
             </div>
           </div>
 
-          <div className="rounded-[2rem] border border-white/10 bg-[linear-gradient(180deg,rgba(15,11,18,0.98),rgba(9,9,12,0.96))] p-6">
+          <div className="rounded-[2rem] border border-white/10 bg-[radial-gradient(circle_at_top,rgba(34,211,238,0.06),transparent_32%),linear-gradient(180deg,rgba(15,11,18,0.98),rgba(9,9,12,0.96))] p-6 shadow-[0_18px_50px_rgba(0,0,0,0.24)]">
             <p className="text-xs uppercase tracking-[0.24em] text-fuchsia-200/72">Ajouter un titre</p>
             <h3 className="mt-3 text-2xl font-black text-white">Drop YouTube dans la file</h3>
             {queueComposer ? (
