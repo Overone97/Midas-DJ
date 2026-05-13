@@ -428,13 +428,13 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                 <span>Deck B</span>
               </div>
 
-              <div className={`absolute left-1/2 z-[6] flex -translate-x-1/2 flex-col items-center transition-transform duration-500 ${isWideLayout ? 'bottom-[14.9rem]' : 'bottom-[13.5rem]'} ${sceneMood === 'hype' ? 'translate-y-[-0.35rem]' : sceneMood === 'groove' ? 'translate-y-[-0.15rem]' : ''}`}>
+              <div className={`absolute left-1/2 z-[11] flex -translate-x-1/2 flex-col items-center transition-transform duration-500 ${isWideLayout ? 'bottom-[16.2rem]' : 'bottom-[14.7rem]'} ${sceneMood === 'hype' ? 'translate-y-[-0.35rem]' : sceneMood === 'groove' ? 'translate-y-[-0.15rem]' : ''}`}>
                 <div className={`absolute -top-10 h-32 w-32 rounded-full blur-2xl ${sceneMood === 'hype' ? 'bg-fuchsia-400/30' : 'bg-fuchsia-400/20'}`} />
                 <AvatarDisplay avatar={djMember?.avatar} label={ownerLabel} size="lg" badge="DJ" mood={sceneMood} raisedHand={reactions?.userReactions?.[djMember?.id ?? ''] === 'grab'} />
                 <span className="mt-2 rounded-full border border-fuchsia-300/20 bg-fuchsia-300/10 px-3 py-1 text-[10px] font-bold uppercase tracking-[0.22em] text-fuchsia-50">DJ booth</span>
               </div>
 
-              <div className={`absolute inset-x-0 z-[7] px-4 ${isWideLayout ? 'bottom-[21.4rem]' : 'bottom-[19.4rem]'}`}>
+              <div className={`absolute inset-x-0 z-[9] px-4 ${isWideLayout ? 'bottom-[22.1rem]' : 'bottom-[20.1rem]'}`}>
                 <div className="bg-gradient-to-t from-black/80 to-transparent px-1 pb-2 pt-10">
                   <div className="flex items-center justify-between gap-3 text-sm text-white/80">
                     <span>Timing room · {formatClock(liveOffset)}</span>
@@ -446,7 +446,7 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                 </div>
               </div>
 
-              <div className={`absolute inset-x-0 bottom-0 z-[8] rounded-t-[2.4rem] border-t border-white/8 bg-[linear-gradient(180deg,rgba(11,11,17,0.76),rgba(5,5,9,0.99))] px-5 pt-8 backdrop-blur-sm ${isWideLayout ? 'pb-9' : 'pb-7'}`}>
+              <div className={`absolute inset-x-0 bottom-0 z-[8] rounded-t-[2.4rem] border-t border-white/8 bg-[linear-gradient(180deg,rgba(11,11,17,0.76),rgba(5,5,9,0.99))] px-5 pt-6 backdrop-blur-sm ${isWideLayout ? 'pb-8' : 'pb-6'}`}>
                 <div className="mb-4 flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
                   <div>
                     <p className="text-[10px] uppercase tracking-[0.28em] text-fuchsia-100/52">Audience zone</p>
@@ -479,9 +479,9 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                     ))}
                   </div>
                 ) : null}
-                <div className={`relative overflow-hidden rounded-[1.6rem] border border-white/6 bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.07),transparent_38%),linear-gradient(180deg,rgba(20,18,32,0.42),rgba(8,8,14,0.18))] px-4 ${isWideLayout ? 'py-6' : 'py-5'}`}>
+                <div className={`relative overflow-hidden rounded-[1.6rem] border border-white/6 bg-[radial-gradient(circle_at_50%_0%,rgba(34,211,238,0.07),transparent_38%),linear-gradient(180deg,rgba(20,18,32,0.42),rgba(8,8,14,0.18))] px-4 ${isWideLayout ? 'py-5' : 'py-4'}`}>
                   <div className="pointer-events-none absolute inset-x-[12%] top-3 z-[1] h-px bg-gradient-to-r from-transparent via-white/12 to-transparent" />
-                  <div className="pointer-events-none absolute inset-x-6 bottom-[9.8rem] z-[9] h-28 overflow-hidden">
+                  <div className="pointer-events-none absolute inset-x-6 bottom-[8.2rem] z-[9] h-24 overflow-hidden">
                     {reactionBursts.map((burst, index) => (
                       <div
                         key={burst.id}
@@ -496,7 +496,7 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
                       </div>
                     ))}
                   </div>
-                  <div className={`relative overflow-hidden pb-2 ${isWideLayout ? 'min-h-[24rem]' : 'min-h-[20rem]'}`}>
+                  <div className={`relative overflow-hidden pb-2 ${isWideLayout ? 'min-h-[21.5rem]' : 'min-h-[17.5rem]'}`}>
                     <div className="pointer-events-none absolute inset-x-0 bottom-[0.9rem] h-[8.5rem] bg-[radial-gradient(circle_at_50%_0%,rgba(244,114,182,0.08),transparent_52%),linear-gradient(180deg,rgba(255,255,255,0),rgba(255,255,255,0.03))]" />
                     <div className="pointer-events-none absolute inset-x-[9%] bottom-[1.2rem] top-6 rounded-[2rem] border border-white/[0.04]" />
                     <div className="pointer-events-none absolute inset-x-[12%] bottom-[2.4rem] top-8 rounded-[2rem] border border-white/[0.03]" />

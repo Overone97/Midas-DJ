@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.6.49] - 2026-05-13
+
+### Changed
+- Fosse de la room compactée et DJ booth remonté pour que le crowd panel ne camoufle plus le DJ au centre de scène
+- Timing room légèrement repositionné pour garder une meilleure respiration visuelle entre le booth et l’audience
+
 ## [1.6.48] - 2026-05-13
 
 ### Fixed
