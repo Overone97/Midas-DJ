@@ -1,5 +1,16 @@
 # Changelog
 
+## [1.6.47] - 2026-05-13
+
+### Added
+- Mode `standby lounge` quand la queue est vide, avec une petite ambiance d’attente locale pour éviter la room qui retombe à plat
+
+### Changed
+- L’écran principal reste en mode attente vivant quand aucun titre n’est chargé, puis bascule directement sur le vrai morceau au prochain ajout
+
+### Fixed
+- Réactivation de la lecture durcie après une queue vidée : l’ajout du titre suivant relance maintenant le playback même si la ligne `playback_state` était restée en état paumé
+
 ## [1.6.41] - 2026-05-11
 
 ### Added

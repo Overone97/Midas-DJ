@@ -7,6 +7,7 @@ import { AudioEngine, useAudioEngine } from '@/lib/audio-engine';
 import { globalAudioController, useGlobalAudioController } from '@/lib/audio-controller';
 import type { PlaybackPreview, QueueItemPreview, RoomMemberPreview, RoomReactionSummary, RoomReactionType } from '@/lib/rooms';
 import { assignPitSlots, defaultPitSlots } from '@/lib/pit-layout';
+import { StandbyAudioLoop } from '@/lib/standby-audio-loop';
 import { YouTubeAudioAdapter, type YouTubePlayerFactory, type YouTubeStateMap } from '@/lib/youtube-audio-adapter';
 
 declare global {
@@ -105,6 +106,7 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
   const playerHostRef = useRef<HTMLDivElement | null>(null);
   const adapterRef = useRef<YouTubeAudioAdapter | null>(null);
   const engineRef = useRef(new AudioEngine());
+  const standbyLoopRef = useRef<StandbyAudioLoop | null>(null);
   const previousReactionCountsRef = useRef<RoomReactionSummary['counts'] | null>(null);
   const autoAdvanceTrackRef = useRef<string | null>(null);
   const [playerReady, setPlayerReady] = useState(false);
@@ -122,6 +124,9 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
   const isWideLayout = layoutMode === 'wide';
 
   const stageBadge = useMemo(() => {
+    if (!playback && !currentTrack) {
+      return 'standby lounge';
+    }
     if (!playback) {
       return 'scène en attente';
     }
@@ -138,7 +143,7 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
       return 'pause room';
     }
     return 'set terminé';
-  }, [engineState.playbackState, playback]);
+  }, [currentTrack, engineState.playbackState, playback]);
 
   const sceneMood = useMemo<'idle' | 'groove' | 'hype'>(() => {
     if (engineState.playbackState !== 'playing') {
@@ -256,12 +261,38 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
   }, [playback?.state, playback?.startedAt, playback?.offsetSeconds, playback?.updatedAt]);
 
   useEffect(() => {
+    if (!standbyLoopRef.current) {
+      standbyLoopRef.current = new StandbyAudioLoop();
+    }
+
+    return () => {
+      standbyLoopRef.current?.destroy();
+      standbyLoopRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
     engineRef.current.setMuted(globalAudioState.muted);
+    standbyLoopRef.current?.setMuted(globalAudioState.muted);
   }, [globalAudioState.muted]);
 
   useEffect(() => {
     engineRef.current.setVolume(globalAudioState.volume);
+    standbyLoopRef.current?.setVolume(globalAudioState.volume);
   }, [globalAudioState.volume]);
+
+  useEffect(() => {
+    if (!standbyLoopRef.current) {
+      return;
+    }
+
+    if (!currentTrack && globalAudioState.hasInteracted) {
+      void standbyLoopRef.current.play();
+      return;
+    }
+
+    standbyLoopRef.current.stop();
+  }, [currentTrack?.id, globalAudioState.hasInteracted]);
 
   useEffect(() => {
     return globalAudioController.registerSource(`youtube-scene-${currentTrack?.id ?? 'idle'}`, {
@@ -310,6 +341,7 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
 
   useEffect(() => {
     return () => {
+      standbyLoopRef.current?.destroy();
       adapterRef.current?.destroy();
       adapterRef.current = null;
       engineRef.current.detachAdapter();
@@ -379,10 +411,10 @@ export function SyncScenePlayer({ track, playback, reactions, canControl, member
               <div className={`absolute top-6 z-[1] h-[39%] overflow-hidden rounded-[1.55rem] border border-white/10 bg-black shadow-[0_0_0_1px_rgba(255,255,255,0.04),0_24px_70px_rgba(0,0,0,0.45)] ${isWideLayout ? 'inset-x-[8%]' : 'inset-x-[12%]'}`}>
                 <div className="absolute inset-x-0 top-0 z-10 flex items-center justify-between bg-gradient-to-b from-black/70 to-transparent px-4 py-3 text-[10px] uppercase tracking-[0.2em] text-white/60">
                   <span>Screen wall</span>
-                  <span>{currentTrack ? (playerReady ? 'live video' : 'loading') : 'offline'}</span>
+                  <span>{currentTrack ? (playerReady ? 'live video' : 'loading') : 'standby'}</span>
                 </div>
                 <div className="aspect-video h-full w-full bg-black">
-                  {currentTrack ? <div ref={playerHostRef} className="h-full w-full [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:opacity-80" /> : <div className="flex h-full items-center justify-center text-white/55">Ajoute un titre pour lancer la scène.</div>}
+                  {currentTrack ? <div ref={playerHostRef} className="h-full w-full [&_iframe]:h-full [&_iframe]:w-full [&_iframe]:opacity-80" /> : <div className="flex h-full flex-col items-center justify-center gap-3 text-center text-white/60"><div className="rounded-full border border-cyan-300/20 bg-cyan-300/10 px-3 py-1 text-[10px] font-black uppercase tracking-[0.2em] text-cyan-50">Standby lounge</div><p className="max-w-md text-sm text-white/55">La queue est vide, donc la room garde un fond d’attente léger au lieu de mourir comme une borne SNCF.</p><p className="text-xs text-white/40">Ajoute un titre et la scène repasse direct sur le vrai morceau.</p></div>}
                 </div>
               </div>
 
