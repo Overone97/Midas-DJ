@@ -1163,9 +1163,19 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
       }
     }
 
-    if (!state.playback?.currentQueueItemId && inserted?.id) {
-      await supabase.from('queue_items').update({ status: 'playing' }).eq('id', inserted.id);
-      await activatePlaybackForTrack(inserted.id);
+    if (inserted?.id) {
+      const { data: playbackRow } = await supabase
+        .from('playback_state')
+        .select('current_queue_item_id, state')
+        .eq('room_id', state.room.id)
+        .maybeSingle();
+
+      const shouldActivatePlayback = !playbackRow?.current_queue_item_id || playbackRow.state !== 'playing';
+
+      if (shouldActivatePlayback) {
+        await supabase.from('queue_items').update({ status: 'playing' }).eq('id', inserted.id);
+        await activatePlaybackForTrack(inserted.id);
+      }
     }
 
     return inserted;
