@@ -1127,7 +1127,6 @@ export function LiveRoomPage({ initialState }: { initialState: RoomPageState }) 
         .from('queue_items')
         .select('position')
         .eq('room_id', state.room.id)
-        .in('status', ['queued', 'playing'])
         .order('position', { ascending: false })
         .limit(1);
 

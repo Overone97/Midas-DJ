@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.6.48] - 2026-05-13
+
+### Fixed
+- Ajout de titre dans une room réparé après historique de lecture : la prochaine `position` de queue est maintenant calculée sur tout l’historique de la room, ce qui évite le `409` Supabase sur `queue_items`
+
 ## [1.6.47] - 2026-05-13
 
 ### Added
